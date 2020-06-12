@@ -14,7 +14,7 @@ Stores attributes for generating MIP JuMP model. Has the following fields:
 """
 
 
-struct MIP_inital_parameters
+mutable struct MIP_initial_parameters
 
     # sceanrios related parameters
     num_scen::Int
