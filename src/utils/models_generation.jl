@@ -74,11 +74,10 @@ function MIP_lagrangian_relaxation_generation(initial_parameters::MIP_initial_pa
             for i = 1 : initial_parameters.num_scen - 1 ]
 
     # creating the array of subproblems
-    vector_of_subproblems = Array{Any}(undef, 1, initial_parameters.num_scen)
+    vector_of_subproblems = Array{Any}(undef, initial_parameters.num_scen)
 
     # formulating the subproblems based on the scenarios
     for s = 1 : initial_parameters.num_scen
-            print("$(initial_parameters.scen_prob[s]) \n")
         vector_of_subproblems[s] = Model(with_optimizer(Gurobi.Optimizer, Method = 4, OutputFlag=0, MIPGap =  0, Threads = 1))
 
         # integer decision variables
@@ -101,7 +100,6 @@ function MIP_lagrangian_relaxation_generation(initial_parameters::MIP_initial_pa
 
         )
 
-            print("flag\n")
         #quadratic constraints
         @constraint( vector_of_subproblems[s], [ r = 1 : initial_parameters.num_const ],
             sum( y[i] * generated_parameters.constraint_Qs[s][r][i, j] * y[j] for i = 1 : initial_parameters.num_cont_var, j = 1 : initial_parameters.num_cont_var)
