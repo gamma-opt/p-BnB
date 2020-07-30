@@ -1,37 +1,34 @@
-using JuMP, Gurobi, Random, LinearAlgebra, SparseArrays, Suppressor
 
-include("types/MIP_generated_parameters.jl")
+
+using JuMP, Gurobi, Random, LinearAlgebra, SparseArrays, Suppressor, Ipopt
+
 include("types/MIP_initial_parameters.jl")
+include("types/MIP_generated_parameters.jl")
 include("types/node.jl")
 include("types/bnb_model.jl")
-include("utils/parameters_generation.jl")
+include("types/bundle_method_output.jl")
+
+include("utils/branching.jl")
+include("utils/delta_computation.jl")
 include("utils/models_generation.jl")
+include("utils/node_generation.jl")
+include("utils/node_selection.jl")
+include("utils/parameters_generation.jl")
+include("utils/update_LB.jl")
 
-initial_parameters = MIP_initial_parameters( 4, [0.25, 0.25, 0.25, 0.25], 3, 3, 1, 0.8, 1, false, 7200 )
+include("schemes/bundle_method.jl")
+include("schemes/bnb_solve.jl")
 
-bnb = bnb_model(initial_parameters)
-child = child_node_generation(bnb.nodes[1], 1, "<=", 4)
-optimize!(child.dual_subproblems[1])
+## defining intial parameters for the optimisation problem
+initial_parameters = MIP_initial_parameters( 4, [0.15, 0.45, 0.35, 0.05], 4, 4, 4, 0.8, 1, false, 100 )
 
-
-bnb.nodes[1].primal_problem[:x]
-
+## solving the full-scale problem using Gurobi solver with predefined time limit
 model = MIP_generation(initial_parameters)
-JuMP.unset_integer.(model[:x])
-is_integer.(model[:x])
 optimize!(model)
 objective_value(model)
 value.(model[:x])
+gap = MOI.get(model, MOI.RelativeGap())
 
-l_models = MIP_lagrangian_relaxation_generation(initial_parameters)
-optimize!(l_models[1])
-objective_value(l_models[1])
-x1
-optimize!(l_models[2])
-objective_value(l_models[2])
-optimize!(l_models[3])
-objective_value(l_models[3])
-optimize!(l_models[4])
-objective_value(l_models[4])
-
-objective_value(model) - (objective_value(l_models[1])+objective_value(l_models[2]) + objective_value(l_models[3])+objective_value(l_models[4]))
+## solving the problem using caroe and schultz bnb method with predefined parameters
+ouput = bnb_solve(initial_parameters, 0.1, 0.1)
+(output.UBDg - output.LBDg) /  output.LBDg

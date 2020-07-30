@@ -1,56 +1,106 @@
-function bnb_solve(parameters::initial_parameters)
+"""
+    bnb_solve(intial_parameters::MIP_initial_parameters, epsilon::Float64, epsilon_bb::Float64)
+returns the resulting bnb_struct of caroe and shultz bnb method with
+the parameters epsilon and epsilon_bb. The method is applied to the optimisation
+problem formulated using intial_parameters.
+"""
 
-    #1   create bnb_structure
-    bnb_struct = bnb_model(parameters)
+function bnb_solve(intial_parameters::MIP_initial_parameters, epsilon::Float64, epsilon_bb::Float64)
+
+    # to use Ipopt for the primal problems
+    # when calculating LB
+    intial_parameters.is_int_fixed = false
+
+    # define the starting centre of gravity for the bundle method
+    initial_center_of_gravity = Array{Any}(undef, initial_parameters.num_scen - 1)
+    [ initial_center_of_gravity[i] = zeros(1,initial_parameters.num_int_var)
+        for i = 1 : initial_parameters.num_scen - 1 ]
+
+    init_time = time()
+
+    # create first bnb_structure
+    bnb_struct = bnb_model(initial_parameters)
 
     while length(bnb_struct.nodes)>0
 
         #2 extract the node from the stack and try to optimize it
         current_node, current_node_id = node_selection(bnb_struct)
 
-        @suppress optimize!(current_node.)
+        # using the budnle method to calculate the dual value of the chosen node
+        bm_output = bundle_method(current_node, 100, initial_center_of_gravity, "parallelised" )
 
+        # compute aaveraged values of theinteger variables
+        current_avg_int_var = sum(current_node.initial_parameters.scen_prob[j] .* bm_output.int_var[:,j] for j = 1:current_node.initial_parameters.num_scen)
 
-        #3 if the solution is feasible
-        if has_values(current_node) != false
-            # 3.1 check the whether the node UB is not worse than the global UB
-            if objective_value(current_node) >= bnb_struct.UBDg
-                # 3.1.1  check the integrality conditions for each variable
-                is_all_integer = true
-                variable_index = 0
+        # calcuate the delta
+        current_delta = delta_computation(bm_output.int_var)
 
-                while is_all_integer && variable_index < length(current_node[:x])
-                    variable_index += 1
-                    is_all_integer = isinteger(value(current_node[:x][variable_index]))
-                end #while
+        # if the values of int var coincide for all the scenrios
+        if maximum(current_delta) == 0
 
-                if is_all_integer
-                    bnb_struct.UBDg = objective_value(current_node)
-                    bnb_struct.first_fnd = true
-                    bnb_struct.soln_val = value.(current_node[:x])
-                else
+            # save new dual value if it is lower than exisiting
+            if bm_output.dual_objective_value[end]<bnb_struct.UBDg
 
-                    l_node, r_node = branching(current_node, variable_index)
+                bnb_struct.UBDg = bm_output.dual_objective_value[end]
+                push!(bnb_struct.UBDg_hist, bnb_struct.UBDg)
+                push!(bnb_struct.UBDg_time_hist, time()-init_time)
 
-                    push!(bnb_struct.Nodes, l_node)
-                    push!(bnb_struct.id, length(bnb_struct.Nodes)+1)
+                bnb_struct.max_id = current_node_id
 
-                    push!(bnb_struct.Nodes, r_node)
-                    push!(bnb_struct.id, length(bnb_struct.Nodes)+1)
-                end #if
+                bnb_struct.first_fnd = true
+                bnb_struct.soln_val = current_avg_int_var
+                push!(bnb_struct.soln_hist, current_avg_int_var)
+
+            end
+
+        elseif maximum(current_delta) > epsilon && bm_output.dual_objective_value[end]<bnb_struct.UBDg
+
+            # if some of the integer variables are still continuous
+            if sum(isinteger.(current_avg_int_var))/length(current_avg_int_var) == 1
+
+                # find the first index that breaks integrality conditions
+                variable_index = findfirst(isequal(0), isinteger.(current_avg_int_var))
+
+                # do branching on that index to ensure integrality conditions
+                l_node, r_node = branching(current_node, current_avg_int_var, variable_index, "int")
+
+                push!(bnb_struct.nodes, l_node)
+                push!(bnb_struct.id, length(bnb_struct.nodes)+1)
+
+                push!(bnb_struct.nodes, r_node)
+                push!(bnb_struct.id, length(bnb_struct.nodes)+1)
+
+            else
+
+                # otherwise, find the index that breaks non-anticipativy
+                # conditions the most
+                variable_index = argmax(current_delta)
+
+                # do branching on that index to ensure
+                # non-anticipativity conditions
+                l_node, r_node = branching(current_node, current_avg_int_var, variable_index, "cont", epsilon_bb)
+
+                push!(bnb_struct.nodes, l_node)
+                push!(bnb_struct.id, length(bnb_struct.nodes)+1)
+
+                push!(bnb_struct.nodes, r_node)
+                push!(bnb_struct.id, length(bnb_struct.nodes)+1)
 
             end #if
 
         end #if
 
-    end #while
+        # update LB
 
-    if bnb_struct.first_fnd
-        print("optmal objective value: $(bnb_struct.UBDg)\n")
-        print("optimal decision variables value: $(bnb_struct.soln_val)\n")
-    else print("optimal solution was not found")
-    end
+        new_LB = update_LB(current_node, current_avg_int_var)
+        if new_LB > bnb_struct.LBDg
+            bnb_struct.LBDg = new_LB
+            push!(bnb_struct.LBDg_hist, new_LB)
+            push!(bnb_struct.LBDg_time_hist, time() - init_time)
+        end
+
+    end #while
 
     return bnb_struct
 
-end
+end #function

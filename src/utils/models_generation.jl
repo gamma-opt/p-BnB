@@ -6,12 +6,12 @@ and addinbg auxiliary constraint x[var_index] "<=" or ">=" value.
 """
 
 function MIP_generation(intial_parameters::MIP_initial_parameters)
-
+    
     # generating the parameters
     generated_parameters = parameters_generation(initial_parameters)
 
     # depending on whether the variables are fixed or not we use Ipopt and Gurobi as a solver respectively
-    original_problem = Model( (initial_parameters.is_int_fixed == true) ? ( with_optimizer(Ipopt.Optimizer, print_level=0) ) : ( with_optimizer(Gurobi.Optimizer, NonConvex = 2, MIPGap =  0, Method = 4, OutputFlag=0, TimeLimit = initial_parameters.solver_time_limit, Threads = 1) ) )
+    original_problem = Model( (initial_parameters.is_int_fixed == true) ? ( optimizer_with_attributes(Ipopt.Optimizer, "print_level"=>0) ) : ( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2, "MIPGap" =>  0, "Method" => 4, "OutputFlag"=>0, "TimeLimit" => initial_parameters.solver_time_limit, "Threads" => 1) ) )
 
     # integer decision variables
     if (initial_parameters.is_int_fixed == true)
@@ -78,7 +78,7 @@ function MIP_lagrangian_relaxation_generation(initial_parameters::MIP_initial_pa
 
     # formulating the subproblems based on the scenarios
     for s = 1 : initial_parameters.num_scen
-        vector_of_subproblems[s] = Model(with_optimizer(Gurobi.Optimizer, Method = 4, OutputFlag=0, MIPGap =  0, Threads = 1))
+        vector_of_subproblems[s] = Model(with_optimizer(Gurobi.Optimizer, Method = 4, OutputFlag=0, MIPGap =  0, Threads = 1, NonConvex = 2))
 
         # integer decision variables
         @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_int_var], Int )

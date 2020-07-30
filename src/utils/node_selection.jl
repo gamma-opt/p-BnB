@@ -6,5 +6,5 @@ upper bound of the node, and `id` is the id number of the node.
 
 """
 function node_selection(X::bnb_model)
-    return splice!(X.Nodes,length(X.Nodes)), splice!(X.id,length(X.id))
+    return splice!(X.nodes,length(X.nodes)), splice!(X.id,length(X.id))
 end
