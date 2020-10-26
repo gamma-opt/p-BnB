@@ -8,8 +8,16 @@ of the coordinate based on which child nodes are generated
 function branching(N::node, avg_x::Array{Float64}, variable_index::Int, strategy...)
 
     if strategy[1] == "int" # integer-based barcnhing
-        l_node_value = floor(Int64, avg_x[variable_index])
-        r_node_value = l_node_value + 1
+        # we use Float64() here to make sure that l\r_node_value stays Float
+        # since child_node_generation() takes Float64 as the last parameter
+        l_node_value = Float64(floor(Int64, avg_x[variable_index]))
+
+        print("l node value <= = $l_node_value\n ")
+
+        r_node_value = Float64(l_node_value + 1)
+
+
+        print("r node value >= = $r_node_value\n ")
         l_node = child_node_generation(N, variable_index, "<=", l_node_value)
         r_node = child_node_generation(N, variable_index, ">=", r_node_value)
     else # non-anticipativity-based branching

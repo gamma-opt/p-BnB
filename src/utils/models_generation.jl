@@ -1,76 +1,70 @@
 """
-    a (parent_node::Model, var_index::Int, inequality::String, value::Int)
-returns a child node generated from a parent_node by copying it
-and addinbg auxiliary constraint x[var_index] "<=" or ">=" value.
+    MIP_generation(intial_parameters::MIP_initial_parameters)
+returns an mixed-integer optimisation problem
+a JuMP::model with the parameters token from "intial_parameters"
 
 """
 
-function MIP_generation(intial_parameters::MIP_initial_parameters)
-    
-    # generating the parameters
-    generated_parameters = parameters_generation(initial_parameters)
+function MIP_generation(initial_parameters::MIP_initial_parameters, generated_parameters::MIP_generated_parameters)
 
     # depending on whether the variables are fixed or not we use Ipopt and Gurobi as a solver respectively
-    original_problem = Model( (initial_parameters.is_int_fixed == true) ? ( optimizer_with_attributes(Ipopt.Optimizer, "print_level"=>0) ) : ( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2, "MIPGap" =>  0, "Method" => 4, "OutputFlag"=>0, "TimeLimit" => initial_parameters.solver_time_limit, "Threads" => 1) ) )
+    original_problem = Model( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "MIPGap" =>  initial_parameters.gurobi_parameters.MIPGap, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "TimeLimit" => initial_parameters.solver_time_limit ) )
 
-    # integer decision variables
-    if (initial_parameters.is_int_fixed == true)
-        @variable(original_problem, x[ 1 : initial_parameters.num_int_var, 1 : initial_parameters.num_scen ] )
-    else
-        @variable(original_problem, x[ 1 : initial_parameters.num_int_var, 1 : initial_parameters.num_scen ], Int )
-    end
+    # first stage decision variables
+    @variable(original_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Int )
+    JuMP.unset_integer.(original_problem[:x][generated_parameters.x_cont_indexes, :])
 
-    # continuous decision variables
-    @variable(original_problem, y[ 1 : initial_parameters.num_cont_var, 1 : initial_parameters.num_scen ])
+    # second stage decision variables
+    @variable(original_problem, y[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_scen ], Int)
+    [JuMP.unset_integer.(original_problem[:y][generated_parameters.y_cont_indexes[:,j], j]) for j = 1:initial_parameters.num_scen]
 
     # quadratic objective
     @objective(original_problem, Max,
         sum( initial_parameters.scen_prob[s] *
             (
-                sum( y[i, s] * generated_parameters.objective_Qs[s][i, j] * y[j, s] for i = 1 : initial_parameters.num_cont_var, j = 1 : initial_parameters.num_cont_var)
-                + sum( x[i, s] * generated_parameters.objective_c[i] for i = 1 : initial_parameters.num_int_var)
-                + sum( y[i, s] * generated_parameters.objective_fs[s][i] for i = 1 : initial_parameters.num_cont_var)
+                sum( y[i, s] * generated_parameters.objective_Qs[s][i, j] * y[j, s] for i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var)
+                + sum( x[i, s] * generated_parameters.objective_c[i] for i = 1 : initial_parameters.num_first_stage_var)
+                + sum( y[i, s] * generated_parameters.objective_fs[s][i] for i = 1 : initial_parameters.num_second_stage_var)
             )
         for s in 1:initial_parameters.num_scen)
         )
 
     # quadratic constraints
     @constraint(original_problem, [s = 1 : initial_parameters.num_scen, i = 1 : initial_parameters.num_const ],
-        sum( y[j, s] * generated_parameters.constraint_Qs[s][i][j,k] * y[k, s] for j = 1 : initial_parameters.num_cont_var, k = 1: initial_parameters.num_cont_var)
-        + sum( x[j, s] * generated_parameters.constraint_fs[s][i][1, j] for j = 1 : initial_parameters.num_int_var)
-        + sum( y[j, s] * generated_parameters.constraint_fs[s][i][2, j] for j = 1:  initial_parameters.num_cont_var)
+        sum( y[j, s] * generated_parameters.constraint_Qs[s][i][j,k] * y[k, s] for j = 1 : initial_parameters.num_second_stage_var, k = 1: initial_parameters.num_second_stage_var)
+        + sum( x[j, s] * generated_parameters.constraint_fs[s][i][1, j] for j = 1 : initial_parameters.num_first_stage_var)
+        + sum( y[j, s] * generated_parameters.constraint_fs[s][i][2, j] for j = 1:  initial_parameters.num_second_stage_var)
         + generated_parameters.constraint_fs[s][i][3, 1] <= 0 )
 
-    # box constraints for integer variables
+    # box constraints for first stage variables
     @constraint(original_problem, [ s = 1 : initial_parameters.num_scen ],
         generated_parameters.x_boundaries[:, 1] .<= x[:, s] .<= generated_parameters.x_boundaries[:, 2])
 
-    # box constraints for continuous variables
+    # box constraints for second stage variables
     @constraint(original_problem, [s = 1 : initial_parameters.num_scen],
-        generated_parameters.y_boundaries[:, 1] .<= y[:, s] .<= generated_parameters.y_boundaries[:, 2])
+        generated_parameters.y_boundaries[s][:, 1] .<= y[:, s] .<= generated_parameters.y_boundaries[s][:, 2])
 
     # non-anticipativity conditions
-    @constraint( original_problem, [s in 2 : initial_parameters.num_scen, i = 1 : initial_parameters.num_int_var],
+    @constraint( original_problem, [s in 2 : initial_parameters.num_scen, i = 1 : initial_parameters.num_first_stage_var],
         x[i, s] - x[i, 1] == 0 )
 
     return original_problem
 
 end
 
+"""
+function f_lambda_lagrangian(lambda_lagrangian::Array{Any}, dec_index) = (dec_index == 1 ? sum(lambda_lagrangian[1:end]) : - lambda_lagrangian[dec_index-1])
 
+"""
 
 # auxiliary function for Lagrangian multipliers update
-f_lambda_lagrangian(lambda_lagrangian, dec_index) = (dec_index == 1 ? sum(lambda_lagrangian[1:end]) : - lambda_lagrangian[dec_index-1])
+f_lambda_lagrangian(lambda_lagrangian::Array{Array{Float64}}, dec_index::Int) = (dec_index == 1 ? sum(lambda_lagrangian[1:end]) : - lambda_lagrangian[dec_index-1])
 
-function MIP_lagrangian_relaxation_generation(initial_parameters::MIP_initial_parameters)
+function primal_problem_based_lagrangian_relaxation_generation(initial_parameters::MIP_initial_parameters, generated_parameters::MIP_generated_parameters)
 
-    # generating the parameters
-    generated_parameters = parameters_generation(initial_parameters)
-
-
-    # generate
-    vector_of_lambda_lagrangian = Array{Any}(undef, initial_parameters.num_scen - 1)
-    [ vector_of_lambda_lagrangian[i] = zeros(1,initial_parameters.num_int_var)
+    # generate the starting values for the lagrangian multipliers
+    vector_of_lambda_lagrangian = Array{Array{Float64}}(undef, initial_parameters.num_scen - 1)
+    [ vector_of_lambda_lagrangian[i] = zeros(1,initial_parameters.num_first_stage_var)
             for i = 1 : initial_parameters.num_scen - 1 ]
 
     # creating the array of subproblems
@@ -78,22 +72,24 @@ function MIP_lagrangian_relaxation_generation(initial_parameters::MIP_initial_pa
 
     # formulating the subproblems based on the scenarios
     for s = 1 : initial_parameters.num_scen
-        vector_of_subproblems[s] = Model(with_optimizer(Gurobi.Optimizer, Method = 4, OutputFlag=0, MIPGap =  0, Threads = 1, NonConvex = 2))
 
-        # integer decision variables
-        @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_int_var], Int )
+        vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "MIPGap" =>  initial_parameters.gurobi_parameters.MIPGap, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads))
 
-        # continuous decision variables
-        @variable( vector_of_subproblems[s], y[1 : initial_parameters.num_cont_var] )
+        # first stage decision variables
+        @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Int )
+        JuMP.unset_integer.(vector_of_subproblems[s][:x][generated_parameters.x_cont_indexes])
 
+        # second stage decision variables
+        @variable( vector_of_subproblems[s], y[1 : initial_parameters.num_second_stage_var], Int )
+        JuMP.unset_integer.(vector_of_subproblems[s][:y][generated_parameters.y_cont_indexes[:,s]])
 
         # quadratic objective
         @objective( vector_of_subproblems[s], Max,
             initial_parameters.scen_prob[s] *
             (
-            sum( y[i] * generated_parameters.objective_Qs[s][i, j] * y[j] for i = 1 : initial_parameters.num_cont_var, j = 1 : initial_parameters.num_cont_var)
-            + sum( x[i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_int_var)
-            + sum( y[j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_cont_var)
+            sum( y[i] * generated_parameters.objective_Qs[s][i, j] * y[j] for i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var)
+            + sum( x[i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
+            + sum( y[j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
             )
 
             +  sum( f_lambda_lagrangian( vector_of_lambda_lagrangian[:], s ) .* x )
@@ -102,22 +98,238 @@ function MIP_lagrangian_relaxation_generation(initial_parameters::MIP_initial_pa
 
         #quadratic constraints
         @constraint( vector_of_subproblems[s], [ r = 1 : initial_parameters.num_const ],
-            sum( y[i] * generated_parameters.constraint_Qs[s][r][i, j] * y[j] for i = 1 : initial_parameters.num_cont_var, j = 1 : initial_parameters.num_cont_var)
-            + sum( x[i] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_int_var)
-            + sum( y[j] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_cont_var )
+            sum( y[i] * generated_parameters.constraint_Qs[s][r][i, j] * y[j] for i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var)
+            + sum( x[i] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_first_stage_var)
+            + sum( y[j] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_second_stage_var )
             + generated_parameters.constraint_fs[s][r][3, 1] <= 0
         )
 
-        # box constraints for integer variables
+        # box constraints for first stage variables
         @constraint( vector_of_subproblems[s],
             generated_parameters.x_boundaries[:, 1] .<= x .<= generated_parameters.x_boundaries[:, 2])
 
-        # box constraints for continuous variables
+        # box constraints for second stage variables
         @constraint( vector_of_subproblems[s],
-            generated_parameters.y_boundaries[:, 1] .<= y .<= generated_parameters.y_boundaries[:, 2])
+            generated_parameters.y_boundaries[s][:, 1] .<= y .<= generated_parameters.y_boundaries[s][:, 2])
 
     end
 
     return vector_of_subproblems
 
+end
+
+
+function RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters::MIP_initial_parameters, generated_parameters::MIP_generated_parameters, precision_p::Array{Int64})
+
+    # generate the starting values for the lagrangian multipliers
+    vector_of_lambda_lagrangian = Array{Array{Float64}}(undef, initial_parameters.num_scen - 1)
+    [ vector_of_lambda_lagrangian[i] = zeros(1,initial_parameters.num_first_stage_var)
+            for i = 1 : initial_parameters.num_scen - 1 ]
+
+    # creating the array of subproblems
+    vector_of_subproblems = Array{Any}(undef, initial_parameters.num_scen)
+
+    # formulating the subproblems based on the scenarios
+    for s = 1 : initial_parameters.num_scen
+
+        vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "MIPGap" =>  initial_parameters.gurobi_parameters.MIPGap, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads))
+
+        # first stage decision variables
+        @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Int )
+        JuMP.unset_integer.(vector_of_subproblems[s][:x][generated_parameters.x_cont_indexes])
+
+        # second stage decision variables
+        @variable( vector_of_subproblems[s], y[1 : initial_parameters.num_second_stage_var], Int )
+        JuMP.unset_integer.(vector_of_subproblems[s][:y][generated_parameters.y_cont_indexes[:,s]])
+
+        # RNMDT variables
+        @variables vector_of_subproblems[s] begin
+            y_heat_RNMDT[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_second_stage_var, minimum(precision_p) : -1 ] # x_heat
+            delta_y_RNMDT[ 1 : initial_parameters.num_second_stage_var ] # delta_y_heat
+            z_RNMDT[ 1 : initial_parameters.num_second_stage_var, minimum(precision_p) : -1 ], Bin
+            w_RNMDT[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_second_stage_var ]
+            delta_w_RNMDT[1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_second_stage_var ]
+
+        end
+
+        # quadratic objective
+        @objective( vector_of_subproblems[s], Max,
+            initial_parameters.scen_prob[s] *
+            ( sum(generated_parameters.objective_Qs[s][i, j] * w_RNMDT[i, j]
+                for i = 1 : initial_parameters.num_second_stage_var,
+                    j = 1 : initial_parameters.num_second_stage_var)
+            + sum( x[i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
+            + sum( y[j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
+            )
+
+            +  sum( f_lambda_lagrangian( vector_of_lambda_lagrangian[:], s ) .* x )
+
+        )
+
+        #quadratic constraint
+        @constraint( vector_of_subproblems[s], [ r = 1 : initial_parameters.num_const ],
+            sum(generated_parameters.constraint_Qs[s][r][i, j] * w_RNMDT[i, j]
+                for i = 1 : initial_parameters.num_second_stage_var,
+                j = 1 : initial_parameters.num_second_stage_var)
+            + sum( x[i] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_first_stage_var)
+            + sum( y[j] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_second_stage_var )
+            + generated_parameters.constraint_fs[s][r][3, 1] <= 0
+        ) # 27
+
+        # box constraints for first stage variables
+        @constraint( vector_of_subproblems[s],
+            generated_parameters.x_boundaries[:, 1] .<= x .<= generated_parameters.x_boundaries[:, 2])
+
+        # box constraints for second stage variables
+        @constraint( vector_of_subproblems[s],
+            generated_parameters.y_boundaries[s][:, 1] .<= y .<= generated_parameters.y_boundaries[s][:, 2])
+
+
+## auxiliary RNMDT constraints
+
+        @constraint( vector_of_subproblems[s], [ j  = 1 : initial_parameters.num_second_stage_var],
+            y[j] == (generated_parameters.y_boundaries[s][j, 2] - generated_parameters.y_boundaries[s][j, 1])  *
+            ( sum( 2.0^l * z_RNMDT[j, l] for l = precision_p[j, s] : -1) + delta_y_RNMDT[j] ) ) # 28
+
+        @constraint( vector_of_subproblems[s], [ i  = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var ],
+            w_RNMDT[i, j] == (generated_parameters.y_boundaries[s][j, 2] - generated_parameters.y_boundaries[s][j, 1]) *
+            ( sum( 2.0^l * y_heat_RNMDT[i, j, l] for l = precision_p[j, s] : -1) + delta_w_RNMDT[i, j] ) ) # 29
+
+        @constraint( vector_of_subproblems[s], [ j  = 1 : initial_parameters.num_second_stage_var ],
+            0 <= delta_y_RNMDT[j] <= 2.0^precision_p[j, s] ) # 30
+
+        @constraint( vector_of_subproblems[s], [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var],
+            2.0^precision_p[i, s] * ( y[i] - generated_parameters.y_boundaries[s][i, 2] ) + generated_parameters.y_boundaries[s][i, 2] * delta_y_RNMDT[j] <= delta_w_RNMDT[i, j]) # 31
+
+        @constraint( vector_of_subproblems[s], [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var],
+            delta_w_RNMDT[i, j] <= 2.0^precision_p[i, s] * ( y[i] - generated_parameters.y_boundaries[s][i, 1] ) + generated_parameters.y_boundaries[s][i, 1] * delta_y_RNMDT[j]) # 31
+
+        @constraint( vector_of_subproblems[s], [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var],
+            generated_parameters.y_boundaries[s][i, 1] * delta_y_RNMDT[j] <= delta_w_RNMDT[i, j]) #32
+
+        @constraint( vector_of_subproblems[s], [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var],
+            delta_w_RNMDT[i, j] <= generated_parameters.y_boundaries[s][i, 2] * delta_y_RNMDT[j]) # 32
+
+        @constraint( vector_of_subproblems[s], [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, l = precision_p[j, s] : -1],
+            generated_parameters.y_boundaries[s][i, 1] * z_RNMDT[j, l]  <= y_heat_RNMDT[i, j, l]) # 33
+
+        @constraint( vector_of_subproblems[s], [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, l = precision_p[j, s] : -1],
+            y_heat_RNMDT[i, j, l] <= generated_parameters.y_boundaries[s][i, 2] * z_RNMDT[j, l]) # 33
+
+        @constraint( vector_of_subproblems[s], [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, l = precision_p[j, s] : -1],
+            generated_parameters.y_boundaries[s][i, 1] * (1 - z_RNMDT[j, l]) <= y[i] - y_heat_RNMDT[i, j, l] ) # 34
+
+        @constraint( vector_of_subproblems[s], [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, l = precision_p[j, s] : -1],
+            y[i] - y_heat_RNMDT[i, j, l] <= generated_parameters.y_boundaries[s][i, 2] * (1 - z_RNMDT[j, l]) ) # 34
+##
+    end
+
+    return vector_of_subproblems
+
+end
+
+function RNMDT_based_problem_generation(initial_parameters::MIP_initial_parameters, generated_parameters::MIP_generated_parameters)
+
+    # all the commments for the auxiliary constraints in this section refer to the paper
+    # Enhancing the normalized multiparametric disaggregation
+    # technique for mixed-integer quadratic programming
+
+    # simplifying the notations
+    precision_p = initial_parameters.RNMDT_precision_factor
+
+    # defining RNMDT problem
+    RNMDT_problem = Model( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "MIPGap" =>  initial_parameters.gurobi_parameters.MIPGap, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Threads" => initial_parameters.gurobi_parameters.Threads, "TimeLimit" => initial_parameters.solver_time_limit) )
+
+    # first stage decision variables
+    @variable(RNMDT_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Int )
+    JuMP.unset_integer.(RNMDT_problem[:x][generated_parameters.x_cont_indexes, :])
+
+    # second stage decision variables
+    @variable(RNMDT_problem, y[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_scen ], Int)
+    [JuMP.unset_integer.(RNMDT_problem[:y][generated_parameters.y_cont_indexes[:,j], j]) for j = 1:initial_parameters.num_scen]
+
+
+    #auxiliary RNMDT variables
+    @variables RNMDT_problem begin
+        y_heat_RNMDT[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_second_stage_var, minimum(precision_p) : -1, 1 : initial_parameters.num_scen ] # x_heat
+        delta_y_RNMDT[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_scen ] # delta_x_heat
+        z_RNMDT[ 1 : initial_parameters.num_second_stage_var, minimum(precision_p) : -1, 1 : initial_parameters.num_scen ], Bin
+        w_RNMDT[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_scen ]
+        delta_w_RNMDT[1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_scen ]
+    end
+
+    #quadratic objective
+    @objective( RNMDT_problem, Max,
+        sum( initial_parameters.scen_prob[s] *
+            (
+            sum(generated_parameters.objective_Qs[s][i, j] * w_RNMDT[i, j, s]
+                    for i = 1 : initial_parameters.num_second_stage_var,
+                        j = 1 : initial_parameters.num_second_stage_var)
+                + sum( x[i, s] * generated_parameters.objective_c[i] for i = 1:initial_parameters.num_first_stage_var)
+                + sum( y[j, s] * generated_parameters.objective_fs[s][j] for j = 1:initial_parameters.num_second_stage_var)
+            )
+        for s = 1 : initial_parameters.num_scen)
+    ) # 26
+
+    #quadratic constraints
+    @constraint( RNMDT_problem, [ s = 1 : initial_parameters.num_scen, r = 1 : initial_parameters.num_const ],
+        sum(generated_parameters.constraint_Qs[s][r][i, j] * w_RNMDT[i, j, s]
+            for i = 1 : initial_parameters.num_second_stage_var,
+                j = 1 : initial_parameters.num_second_stage_var)
+        + sum( x[i, s] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_first_stage_var)
+        + sum( y[j, s] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_second_stage_var )
+        + generated_parameters.constraint_fs[s][r][3, 1] <= 0
+    ) # 27
+
+## auxiliary RNMDT constraints
+
+    @constraint( RNMDT_problem, [ j  = 1 : initial_parameters.num_second_stage_var, s  = 1 : initial_parameters.num_scen],
+        y[j, s] == (generated_parameters.y_boundaries[s][j, 2] - generated_parameters.y_boundaries[s][j, 1])  *
+        ( sum( 2.0^l * z_RNMDT[j, l, s] for l = precision_p[j, s] : -1) + delta_y_RNMDT[j, s] ) ) # 28
+
+    @constraint( RNMDT_problem, [ i  = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen ],
+        w_RNMDT[i, j, s] == (generated_parameters.y_boundaries[s][j, 2] - generated_parameters.y_boundaries[s][j, 1]) *
+        ( sum( 2.0^l * y_heat_RNMDT[i, j, l, s] for l = precision_p[j, s] : -1) + delta_w_RNMDT[i, j, s] ) ) # 29
+
+    @constraint( RNMDT_problem, [ j  = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen ],
+        0 <= delta_y_RNMDT[j, s] <= 2.0^precision_p[j, s] ) # 30
+
+    @constraint( RNMDT_problem, [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen],
+        2.0^precision_p[i, s] * ( y[i, s] - generated_parameters.y_boundaries[s][i, 2] ) + generated_parameters.y_boundaries[s][i, 2] * delta_y_RNMDT[j, s] <= delta_w_RNMDT[i, j, s]) # 31
+
+    @constraint( RNMDT_problem, [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen],
+        delta_w_RNMDT[i, j, s] <= 2.0^precision_p[i, s] * ( y[i, s] - generated_parameters.y_boundaries[s][i, 1] ) + generated_parameters.y_boundaries[s][i, 1] * delta_y_RNMDT[j, s]) # 31
+
+    @constraint( RNMDT_problem, [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen ],
+        generated_parameters.y_boundaries[s][i, 1] * delta_y_RNMDT[j, s] <= delta_w_RNMDT[i, j, s]) #32
+
+    @constraint( RNMDT_problem, [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen],
+        delta_w_RNMDT[i, j, s] <= generated_parameters.y_boundaries[s][i, 2] * delta_y_RNMDT[j, s]) # 32
+
+    @constraint( RNMDT_problem, [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen, l = precision_p[j, s] : -1 ],
+        generated_parameters.y_boundaries[s][i, 1] * z_RNMDT[j, l, s]  <= y_heat_RNMDT[i, j, l, s]) # 33
+
+    @constraint( RNMDT_problem, [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen, l = precision_p[j, s] : -1 ],
+        y_heat_RNMDT[i, j, l, s] <= generated_parameters.y_boundaries[s][i, 2] * z_RNMDT[j, l, s]) # 33
+
+    @constraint( RNMDT_problem, [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen, l = precision_p[j, s] : -1 ],
+        generated_parameters.y_boundaries[s][i, 1] * (1 - z_RNMDT[j, l, s]) <= y[i,s] - y_heat_RNMDT[i, j, l, s] ) # 34
+
+    @constraint( RNMDT_problem, [ i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var, s = 1 : initial_parameters.num_scen, l = precision_p[j, s] : -1 ],
+        y[i,s] - y_heat_RNMDT[i, j, l, s] <= generated_parameters.y_boundaries[s][i, 2] * (1 - z_RNMDT[j, l, s]) ) # 34
+
+##
+    # box constraints for first stage variables
+    @constraint(RNMDT_problem, [ s = 1 : initial_parameters.num_scen ],
+        generated_parameters.x_boundaries[:, 1] .<= x[:, s] .<= generated_parameters.x_boundaries[:, 2])
+
+    # box constraints for second stage variables
+    @constraint(RNMDT_problem, [s = 1 : initial_parameters.num_scen],
+        generated_parameters.y_boundaries[s][:, 1] .<= y[:, s] .<= generated_parameters.y_boundaries[s][:, 2])
+
+    # non-anticipativity conditions
+    @constraint(RNMDT_problem, [s in 2 : initial_parameters.num_scen, i = 1 : initial_parameters.num_first_stage_var],
+        x[i, s] - x[i, 1] == 0 )
+
+    return RNMDT_problem
 end
