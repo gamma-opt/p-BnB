@@ -63,13 +63,6 @@ print("\n*********************************************************\n")
 center_of_gravity_min = 0
 center_of_gravity_max = 0
 
-bnb_struct = bnb_model(initial_parameters)
-dynamic_precision_RNMDT_algorithm(bnb_struct.nodes[1])
-
-s = primal_problem_based_lagrangian_relaxation_generation(initial_parameters, generated_parameters)
-
-print(s[1])
-
 initial_centre_of_gravity = intial_centre_of_gravity_generation(initial_parameters.bm_parameters.initial_centre_of_gravity_min, initial_parameters.bm_parameters.initial_centre_of_gravity_max, initial_parameters.random_seed, initial_parameters.num_scen, initial_parameters.num_first_stage_var)
 RNMDT_subproblems = RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters, generated_parameters, initial_parameters.RNMDT_precision_factor)
 try_node = node(primal_problem, RNMDT_subproblems , initial_parameters, generated_parameters)
