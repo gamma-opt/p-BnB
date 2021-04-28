@@ -1,3 +1,13 @@
+function intial_centre_of_gravity_generation(centre_of_gravity_min, centre_of_gravity_max, random_seed, num_scen, num_first_stage_var)
+    Random.seed!(random_seed)
+    centre_of_gravity_inital_value = Array{Array{Float64}}(undef, num_scen)
+    [centre_of_gravity_inital_value[i] = centre_of_gravity_min .+ (centre_of_gravity_max - centre_of_gravity_min) .* rand(num_first_stage_var)
+        for i = 1 : num_scen]
+
+    return centre_of_gravity_inital_value
+end
+
+
 # the function contains the implementation of the Lagrangian decomposition
 # with the bundle method multipliers update applied to the mixed integer based
 # relaxation of the original problem
@@ -5,6 +15,7 @@
 function auxiliary_check(vector_of_lambda_lagrangian, current_teration, iterations_to_be_considered, num_scen, tolerance)
     result = zeros(num_scen-1, 1)
     result_tolerance = tolerance .* ones(num_scen-1, 1)
+
     for i = 1 : iterations_to_be_considered
         result = result .+ norm.(vector_of_lambda_lagrangian[current_teration - i + 1 , :] .- vector_of_lambda_lagrangian[current_teration - i, :])
     end

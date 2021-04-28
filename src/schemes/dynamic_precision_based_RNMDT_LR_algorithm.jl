@@ -1,10 +1,3 @@
-function intial_centre_of_gravity_generation(centre_of_gravity_min, centre_of_gravity_max, random_seed, num_scen, num_first_stage_var)
-    Random.seed!(random_seed)
-    centre_of_gravity_inital_value = Array{Array{Float64}}(undef, num_scen - 1)
-    [centre_of_gravity_inital_value[i] = centre_of_gravity_min .+ (centre_of_gravity_max - centre_of_gravity_min) .* rand(1, num_first_stage_var)
-        for i = 1 : num_scen - 1]
-    return centre_of_gravity_inital_value
-end
 
 function dynamic_precision_RNMDT_algorithm(bnb_node::node)
 

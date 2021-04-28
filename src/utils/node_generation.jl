@@ -5,9 +5,18 @@ is an auxiliary function to copy all the fileds of parent node into the child no
 """
 
 function node_copy(parent_node::node)
+
+    #simplifying the notations
+    initial_parameters = parent_node.initial_parameters
+
     child_node = node(copy(parent_node.primal_problem), [copy(parent_node.dual_subproblems[j]) for j = 1:length(parent_node.dual_subproblems)], parent_node.initial_parameters, parent_node.generated_parameters)
-    @suppress set_optimizer(child_node.primal_problem, optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2))
-    @suppress [set_optimizer(child_node.dual_subproblems[j], optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2)) for j = 1:length(child_node.dual_subproblems)]
+
+    @suppress set_optimizer(child_node.primal_problem, optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol,
+    "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Threads" => initial_parameters.gurobi_parameters.Threads))
+
+    @suppress [set_optimizer(child_node.dual_subproblems[j], optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol,
+    "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Threads" => initial_parameters.gurobi_parameters.Threads))
+             for j = 1:length(child_node.dual_subproblems)]
 
     return child_node
 end
@@ -38,8 +47,13 @@ in the original problem
 function zero_node_generation(initial_parameters::MIP_initial_parameters)
     generated_parameters = parameters_generation(initial_parameters)
     primal_problem = MIP_generation(initial_parameters, generated_parameters)
+
     if initial_parameters.RNMDT_is_used
-        dual_subproblems = RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters, generated_parameters, initial_parameters.RNMDT_precision_factor)
+        if initial_parameters.al_is_used
+            dual_subproblems = RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_parameters, generated_parameters, initial_parameters.RNMDT_precision_factor,initial_parameters.al_penalty_parameter)
+        else
+            dual_subproblems = RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters, generated_parameters, initial_parameters.RNMDT_precision_factor)
+        end
     else
         dual_subproblems = primal_problem_based_lagrangian_relaxation_generation(initial_parameters, generated_parameters)
     end

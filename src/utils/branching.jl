@@ -16,12 +16,11 @@ function branching(N::node, avg_x::Array{Float64}, variable_index::Int, strategy
 
         r_node_value = Float64(l_node_value + 1)
 
-
         print("r node value >= = $r_node_value\n ")
         l_node = child_node_generation(N, variable_index, "<=", l_node_value)
         r_node = child_node_generation(N, variable_index, ">=", r_node_value)
     else # non-anticipativity-based branching
-        l_node_value = avg_x[variable_index] - strategy[2]
+        l_node_value = avg_x[variable_index] #- strategy[2]
         r_node_value = avg_x[variable_index] + strategy[2]
         l_node = child_node_generation(N, variable_index, "<=", l_node_value)
         r_node = child_node_generation(N, variable_index, ">=", r_node_value)

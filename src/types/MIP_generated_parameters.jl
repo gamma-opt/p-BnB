@@ -16,7 +16,7 @@ Stores generated parameters for the MIP JuMP model. Has the following fields:
 """
 
 
-struct MIP_generated_parameters
+mutable struct MIP_generated_parameters
 
     constraint_Qs::Array{Any}
     constraint_fs::Array{Any}

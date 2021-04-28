@@ -1,5 +1,5 @@
-#src_link  =  "/scratch/work/belyakn1/BnB_p_lagrangian/src/"
-src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
+src_link  =  "/scratch/work/belyakn1/BnB_p_lagrangian/src/"
+#src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
 using JuMP, Gurobi, Random, LinearAlgebra, SparseArrays, Suppressor, Ipopt, Profile, Base.Threads
 using DataFrames, XLSX, Dates
 

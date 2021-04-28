@@ -2,8 +2,6 @@
 #--------------auxiliary function for generating quadratic matrices for cosnstraints and obejctive with predefined densiity
 function quadratic_matrix_generation(density, dimention, min_range, max_range, PSD, seed)
 
-    Random.seed!(seed)
-
     # if the matrix is supposed to be PSD
     if PSD == "yes"
 
@@ -51,7 +49,7 @@ function quadratic_matrix_generation(density, dimention, min_range, max_range, P
         end
     # if the matrix does not have to be necessarily PSD
     else
-        Q = (min_range  + (max_range - min_range) ) .* Matrix(Symmetric(sprand(dimention,dimention,density)))
+        Q = round.((min_range  .+ (max_range - min_range) .* Matrix(Symmetric(sprand(dimention,dimention,density)))), digits = 1)
     end
 
     return Q
@@ -59,7 +57,7 @@ end
 
 #--------------function for generation the parameters---------------------------
 
-function parameters_generation(initial_partameters::MIP_initial_parameters)
+function parameters_generation(initial_parameters::MIP_initial_parameters)
 
         Random.seed!(initial_parameters.random_seed)
 
@@ -68,20 +66,21 @@ function parameters_generation(initial_partameters::MIP_initial_parameters)
         Min_value_for_matrix_elements = 0
 
         #defining maximum value for the affine constant in the constraints
-        Max_value_for_affine_constant = 10000000
+        Max_value_for_affine_constant = 100000
 
-        x_limits = [0 100] # max and min values for the continuous variables' box constraints
-        y_limits = [0 100] # max and min values for the integer variables' box constraints
+        x_limits = [0 10] # max and min values for the continuous variables' box constraints
+        y_limits = [0 10] # max and min values for the integer variables' box constraints
 
         #---------------generating integer and continuous indexes-----------------------
         shuffled_x_ind = randperm!(Random.seed!(initial_parameters.random_seed), collect(1:initial_parameters.num_first_stage_var))
-        x_int_indexes = shuffled_x_ind[1:initial_partameters.num_int_var_first_stage]
-        x_cont_indexes = shuffled_x_ind[initial_partameters.num_int_var_first_stage+1:initial_parameters.num_first_stage_var]
+        x_int_indexes = shuffled_x_ind[1:initial_parameters.num_int_var_first_stage]
+        x_cont_indexes = shuffled_x_ind[initial_parameters.num_int_var_first_stage+1:initial_parameters.num_first_stage_var]
 
-        shuffled_y_ind = Array{Int,2}(undef,initial_partameters.num_second_stage_var, initial_parameters.num_scen )
+        shuffled_y_ind = Array{Int,2}(undef,initial_parameters.num_second_stage_var, initial_parameters.num_scen )
+        #@show randperm!(Random.seed!(initial_parameters.random_seed + 1 - 1), collect(1:initial_parameters.num_second_stage_var))
         [shuffled_y_ind[:, j] = randperm!(Random.seed!(initial_parameters.random_seed + j - 1), collect(1:initial_parameters.num_second_stage_var)) for j = 1:initial_parameters.num_scen]
-        y_int_indexes = shuffled_y_ind[1:initial_partameters.num_int_var_second_stage, :]
-        y_cont_indexes = shuffled_y_ind[initial_partameters.num_int_var_second_stage+1:initial_parameters.num_second_stage_var, :]
+        y_int_indexes = shuffled_y_ind[1:initial_parameters.num_int_var_second_stage, :]
+        y_cont_indexes = shuffled_y_ind[initial_parameters.num_int_var_second_stage+1:initial_parameters.num_second_stage_var, :]
 
         #---------------generating constraints for the variables------------------------
 
@@ -105,8 +104,8 @@ function parameters_generation(initial_partameters::MIP_initial_parameters)
         # generating affine functions' coefficients for the left hand side of the constraint for each of the scenario
         constraint_fs = Array{Any}(undef, 1, initial_parameters.num_scen)
 
-        [ constraint_fs[i] = [ round.([(Min_value_for_matrix_elements + (Max_value_for_matrix_elements - Min_value_for_matrix_elements)) .* [rand(1, initial_parameters.num_first_stage_var) zeros(1, ( initial_parameters.num_second_stage_var > initial_parameters.num_first_stage_var ) ? (initial_parameters.num_second_stage_var - initial_parameters.num_first_stage_var) : 0 ) ];
-                                (Min_value_for_matrix_elements + (Max_value_for_matrix_elements - Min_value_for_matrix_elements)) .* [ rand(1, initial_parameters.num_second_stage_var) zeros(1, ( initial_parameters.num_first_stage_var > initial_parameters.num_second_stage_var ) ? (initial_parameters.num_first_stage_var - initial_parameters.num_second_stage_var) : 0 ) ];
+        [ constraint_fs[i] = [ round.([(Min_value_for_matrix_elements .+ (Max_value_for_matrix_elements - Min_value_for_matrix_elements) .* [rand(1, initial_parameters.num_first_stage_var) zeros(1, ( initial_parameters.num_second_stage_var > initial_parameters.num_first_stage_var ) ? (initial_parameters.num_second_stage_var - initial_parameters.num_first_stage_var) : 0 ) ]);
+                                (Min_value_for_matrix_elements .+ (Max_value_for_matrix_elements - Min_value_for_matrix_elements) .* [ rand(1, initial_parameters.num_second_stage_var) zeros(1, ( initial_parameters.num_first_stage_var > initial_parameters.num_second_stage_var ) ? (initial_parameters.num_first_stage_var - initial_parameters.num_second_stage_var) : 0 ) ]);
                                 -Max_value_for_affine_constant .* [rand(1,1) zeros(1, ( initial_parameters.num_second_stage_var > initial_parameters.num_first_stage_var ) ? (initial_parameters.num_second_stage_var - 1) : (initial_parameters.num_first_stage_var - 1))] ], digits = 1)
             for j = 1:initial_parameters.num_const] for i = 1:initial_parameters.num_scen ]
         # first row - x_coeficients (integer variables)
@@ -125,8 +124,8 @@ function parameters_generation(initial_partameters::MIP_initial_parameters)
         objective_fs = Array{Any}(undef, 1, initial_parameters.num_scen)
 
         [ objective_fs[i] = round.( Min_value_for_matrix_elements .+ (Max_value_for_matrix_elements - Min_value_for_matrix_elements) .*  rand(1, initial_parameters.num_second_stage_var),  digits = 1) for i = 1:initial_parameters.num_scen  ]
-        # first row - x_coeficients (continuous variables)
-        # second row - y_coeficients (iteger variables)
+        # first row - x_coeficients (firs-stage variables)
+        # second row - y_coeficients (second-stage variables)
 
         objective_c = round.( Min_value_for_matrix_elements .+ (Max_value_for_matrix_elements - Min_value_for_matrix_elements) .*  rand(1, initial_parameters.num_first_stage_var),  digits = 1)
 
