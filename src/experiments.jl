@@ -1,23 +1,21 @@
 #src_link  =  "/scratch/work/belyakn1/BnB_p_lagrangian/src/"
 #src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
-
-src_link  = pwd()
+src_link =  "/Users/Fabricio/Documents/GitHub/BnB_Caroe-and-Schultz/src/"
 
 cd(src_link)
 using Pkg
 Pkg.activate(".")
 Pkg.instantiate()
 
-
 include(src_link*"initialization.jl")
 
 # check whether th efolder for the "today" experiments exists
 # and if not create one
-if !isdir(chop(src_link, tail = 4) * "exeperiments_" * string(Dates.today()))
-    mkdir(chop(src_link, tail = 4) * "exeperiments_" * string(Dates.today()))
+if !isdir(chop(src_link, tail = 4) * "experiments_" * string(Dates.today()))
+    mkdir(chop(src_link, tail = 4) * "experiments_" * string(Dates.today()))
 end
 
-output_link = chop(src_link, tail = 4) * "exeperiments_" * string(Dates.today()) * "/"
+output_link = chop(src_link, tail = 4) * "experiments_" * string(Dates.today()) * "/"
 
 
 
@@ -25,9 +23,9 @@ output_link = chop(src_link, tail = 4) * "exeperiments_" * string(Dates.today())
 # the structure that will collect the experiments results
 output_df = DataFrame( num_of_scen = Int[], num_fs_var = Int[], num_ss_var = Int[], num_const = Int[], p_RNMDT = Int[], primal_f = Float64[], primal_x = String[], primal_gap = Float64[], RNMDT_UB = Float64[], RNMDT_x = String[], RNMDT_time = Float64[], RNMDT_wy_gap = Float64[], BnB_UB = Float64[], BnB_LB = Float64[], BnB_x = String[], BnB_time = Float64[], BnB_wy_gap = Float64[], BnB_nodes_explored = Int[] )
 
-scenarios = [5,10,15]
+scenarios = [10]
 #scenarios = [5]
-fs_var = [5, 7, 10]
+fs_var = [5]
 #fs_var = [5]
 
 for s in scenarios
@@ -50,7 +48,7 @@ for s in scenarios
         bnb_g_time = 0
         rnmdt_g_time = 0
 
-            while (bnb_g_time < 3600) && (p >= -12)
+            while (bnb_g_time < 3600) && (p >= -5)
 
                 RNMDT_relaxation = RNMDT_based_problem_generation(initial_parameters, generated_parameters)
 
