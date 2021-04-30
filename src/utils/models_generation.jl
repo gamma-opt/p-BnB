@@ -7,8 +7,19 @@ a JuMP::model with the parameters token from "intial_parameters"
 
 function MIP_generation(initial_parameters::MIP_initial_parameters, generated_parameters::MIP_generated_parameters)
 
-    # depending on whether the variables are fixed or not we use Ipopt and Gurobi as a solver respectively
-    original_problem = Model( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "TimeLimit" => initial_parameters.solver_time_limit ) )
+
+    #original_problem = Model( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => #initial_parameters.gurobi_parameters.Threads, "TimeLimit" => initial_parameters.solver_time_limit ) )
+
+    # Defining the model and the solver options
+    original_problem = Model(() -> Gurobi.Optimizer(GRB_ENV))
+    set_optimizer_attribute(original_problem, "NonConvex", initial_parameters.gurobi_parameters.NonConvex)
+    set_optimizer_attribute(original_problem, "IntFeasTol",initial_parameters.gurobi_parameters.IntFeasTol)
+    set_optimizer_attribute(original_problem, "FeasibilityTol", initial_parameters.gurobi_parameters.FeasibilityTol)
+    set_optimizer_attribute(original_problem, "OptimalityTol", initial_parameters.gurobi_parameters.OptimalityTol)
+    set_optimizer_attribute(original_problem, "Method", initial_parameters.gurobi_parameters.Method)
+    set_optimizer_attribute(original_problem, "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
+    set_optimizer_attribute(original_problem, "Threads", initial_parameters.gurobi_parameters.Threads)
+    set_optimizer_attribute(original_problem, "TimeLimit", initial_parameters.solver_time_limit)
 
     # first stage decision variables
     @variable(original_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Int )
@@ -79,7 +90,19 @@ function primal_problem_based_lagrangian_relaxation_generation(initial_parameter
     # formulating the subproblems based on the scenarios
     for s = 1 : initial_parameters.num_scen
 
-        vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+        #vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => #initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+
+        # defining the problems and solver parameters 
+        vector_of_subproblems[s] = Model(() -> Gurobi.Optimizer(GRB_ENV))
+        set_optimizer_attribute(vector_of_subproblems[s], "NonConvex", initial_parameters.gurobi_parameters.NonConvex)
+        set_optimizer_attribute(vector_of_subproblems[s], "IntFeasTol",initial_parameters.gurobi_parameters.IntFeasTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "FeasibilityTol", initial_parameters.gurobi_parameters.FeasibilityTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "OptimalityTol", initial_parameters.gurobi_parameters.OptimalityTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "Method", initial_parameters.gurobi_parameters.Method)
+        set_optimizer_attribute(vector_of_subproblems[s], "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
+        set_optimizer_attribute(vector_of_subproblems[s], "Threads", initial_parameters.gurobi_parameters.Threads)
+        set_optimizer_attribute(vector_of_subproblems[s], "NumericFocus", initial_parameters.gurobi_parameters.NumericFocus)
+
 
         # first stage decision variables
         @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Int )
@@ -143,7 +166,18 @@ function RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters
     # formulating the subproblems based on the scenarios
     for s = 1 : initial_parameters.num_scen
 
-        vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+        #vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+
+        # defining subproblems and solver options
+        vector_of_subproblems[s] = Model(() -> Gurobi.Optimizer(GRB_ENV))
+        set_optimizer_attribute(vector_of_subproblems[s], "NonConvex", initial_parameters.gurobi_parameters.NonConvex)
+        set_optimizer_attribute(vector_of_subproblems[s], "IntFeasTol",initial_parameters.gurobi_parameters.IntFeasTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "FeasibilityTol", initial_parameters.gurobi_parameters.FeasibilityTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "OptimalityTol", initial_parameters.gurobi_parameters.OptimalityTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "Method", initial_parameters.gurobi_parameters.Method)
+        set_optimizer_attribute(vector_of_subproblems[s], "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
+        set_optimizer_attribute(vector_of_subproblems[s], "Threads", initial_parameters.gurobi_parameters.Threads)
+        set_optimizer_attribute(vector_of_subproblems[s], "NumericFocus", initial_parameters.gurobi_parameters.NumericFocus)
 
         # first stage decision variables
         @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Int )
@@ -254,7 +288,18 @@ function RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_
     # formulating the subproblems based on the scenarios
     for s = 1 : initial_parameters.num_scen
 
-        vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+        #vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => #initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+
+        # defining subproblems and solver options
+        vector_of_subproblems[s] = Model(() -> Gurobi.Optimizer(GRB_ENV))
+        set_optimizer_attribute(vector_of_subproblems[s], "NonConvex", initial_parameters.gurobi_parameters.NonConvex)
+        set_optimizer_attribute(vector_of_subproblems[s], "IntFeasTol",initial_parameters.gurobi_parameters.IntFeasTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "FeasibilityTol", initial_parameters.gurobi_parameters.FeasibilityTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "OptimalityTol", initial_parameters.gurobi_parameters.OptimalityTol)
+        set_optimizer_attribute(vector_of_subproblems[s], "Method", initial_parameters.gurobi_parameters.Method)
+        set_optimizer_attribute(vector_of_subproblems[s], "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
+        set_optimizer_attribute(vector_of_subproblems[s], "Threads", initial_parameters.gurobi_parameters.Threads)
+        set_optimizer_attribute(vector_of_subproblems[s], "NumericFocus", initial_parameters.gurobi_parameters.NumericFocus)
 
         # first stage decision variables
         @variable(vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Int )
@@ -369,7 +414,19 @@ function RNMDT_based_problem_generation(initial_parameters::MIP_initial_paramete
     precision_p = initial_parameters.RNMDT_precision_factor
 
     # defining RNMDT problem
-    RNMDT_problem = Model( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "Threads" => initial_parameters.gurobi_parameters.Threads, "TimeLimit" => initial_parameters.solver_time_limit, "Presolve" => 0) )
+    #RNMDT_problem = Model( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "Threads" => initial_parameters.gurobi_parameters.Threads, "TimeLimit" => initial_parameters.solver_time_limit, "Presolve" => 0) )
+
+    # defining RNMDT problem and solver options
+    RNMDT_problem = Model(() -> Gurobi.Optimizer(GRB_ENV))
+    set_optimizer_attribute(RNMDT_problem, "NonConvex", initial_parameters.gurobi_parameters.NonConvex)
+    set_optimizer_attribute(RNMDT_problem, "IntFeasTol",initial_parameters.gurobi_parameters.IntFeasTol)
+    set_optimizer_attribute(RNMDT_problem, "FeasibilityTol", initial_parameters.gurobi_parameters.FeasibilityTol)
+    set_optimizer_attribute(RNMDT_problem, "OptimalityTol", initial_parameters.gurobi_parameters.OptimalityTol)
+    set_optimizer_attribute(RNMDT_problem, "Method", initial_parameters.gurobi_parameters.Method)
+    set_optimizer_attribute(RNMDT_problem, "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
+    set_optimizer_attribute(RNMDT_problem, "Threads", initial_parameters.gurobi_parameters.Threads)
+    set_optimizer_attribute(RNMDT_problem, "TimeLimit", initial_parameters.solver_time_limit)
+    #set_optimizer_attribute(RNMDT_problem, "Presolve", 0)
 
     # first stage decision variables
     @variable(RNMDT_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Int )

@@ -1,7 +1,7 @@
 #src_link  =  "/scratch/work/belyakn1/BnB_p_lagrangian/src/"
 #src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
 
-src_link  = pwd()
+src_link  = "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
 
 cd(src_link)
 using Pkg
@@ -10,6 +10,9 @@ Pkg.instantiate()
 
 
 include(src_link*"initialization.jl")
+
+# set unique envinronment for Gurobi
+const GRB_ENV = Gurobi.Env()
 
 # check whether th efolder for the "today" experiments exists
 # and if not create one
@@ -26,9 +29,9 @@ output_link = chop(src_link, tail = 4) * "exeperiments_" * string(Dates.today())
 output_df = DataFrame( num_of_scen = Int[], num_fs_var = Int[], num_ss_var = Int[], num_const = Int[], p_RNMDT = Int[], primal_f = Float64[], primal_x = String[], primal_gap = Float64[], RNMDT_UB = Float64[], RNMDT_x = String[], RNMDT_time = Float64[], RNMDT_wy_gap = Float64[], BnB_UB = Float64[], BnB_LB = Float64[], BnB_x = String[], BnB_time = Float64[], BnB_wy_gap = Float64[], BnB_nodes_explored = Int[] )
 
 scenarios = [5,10,15]
-#scenarios = [5]
+scenarios = [5]
 fs_var = [5, 7, 10]
-#fs_var = [5]
+fs_var = [5]
 
 for s in scenarios
     for i_fs_var in fs_var

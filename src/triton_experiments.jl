@@ -15,6 +15,7 @@ Pkg.instantiate()
 
 include(src_link*"triton_initialization.jl")
 
+const GRB_ENV = Gurobi.Env()
 ## Constructing the experiments
 # the structure that will collect the experiments results
 output_df = DataFrame( num_of_scen = Int[], num_fs_var = Int[], num_ss_var = Int[], num_const = Int[], p_RNMDT = Int[], primal_f = Float64[], primal_x = String[], primal_gap = Float64[], RNMDT_UB = Float64[], RNMDT_x = String[], RNMDT_time = Float64[], RNMDT_wy_gap = Float64[], BnB_UB = Float64[], BnB_LB = Float64[], BnB_x = String[], BnB_time = Float64[], BnB_wy_gap = Float64[], BnB_nodes_explored = Int[] )
