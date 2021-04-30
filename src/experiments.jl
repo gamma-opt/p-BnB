@@ -1,5 +1,7 @@
 #src_link  =  "/scratch/work/belyakn1/BnB_p_lagrangian/src/"
-src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
+#src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
+
+src_link  = pwd()
 
 cd(src_link)
 using Pkg
@@ -9,14 +11,24 @@ Pkg.instantiate()
 
 include(src_link*"initialization.jl")
 
+# check whether th efolder for the "today" experiments exists
+# and if not create one
+if !isdir(chop(src_link, tail = 4) * "exeperiments_" * string(Dates.today()))
+    mkdir(chop(src_link, tail = 4) * "exeperiments_" * string(Dates.today()))
+end
+
+output_link = chop(src_link, tail = 4) * "exeperiments_" * string(Dates.today()) * "/"
+
+
+
 ## Constructing the experiments
 # the structure that will collect the experiments results
 output_df = DataFrame( num_of_scen = Int[], num_fs_var = Int[], num_ss_var = Int[], num_const = Int[], p_RNMDT = Int[], primal_f = Float64[], primal_x = String[], primal_gap = Float64[], RNMDT_UB = Float64[], RNMDT_x = String[], RNMDT_time = Float64[], RNMDT_wy_gap = Float64[], BnB_UB = Float64[], BnB_LB = Float64[], BnB_x = String[], BnB_time = Float64[], BnB_wy_gap = Float64[], BnB_nodes_explored = Int[] )
 
 scenarios = [5,10,15]
-scenarios = [5]
-#fs_var = [5, 7, 10]
-fs_var = [5]
+#scenarios = [5]
+fs_var = [5, 7, 10]
+#fs_var = [5]
 
 for s in scenarios
     for i_fs_var in fs_var
@@ -52,11 +64,6 @@ for s in scenarios
                     rndmt_happened = false
                 end
 
-
-
-
-
-
                 bnb_p_init_time = time()
                 bnb_output = bnb_solve(initial_parameters, non_ant_tol, tol_bb, integrality_tolerance)
                 bnb_p_final_time = time() - bnb_p_init_time
@@ -82,6 +89,5 @@ for s in scenarios
     end
 
 end
-output_link =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/"
-#output_link =  "/scratch/work/belyakn1/BnB_p_lagrangian/"
+
 XLSX.writetable(output_link*"experiments"*string(Dates.now())*".xlsx", output_df)
