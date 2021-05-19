@@ -92,7 +92,7 @@ function primal_problem_based_lagrangian_relaxation_generation(initial_parameter
 
         #vector_of_subproblems[s] = Model(optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => #initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
 
-        # defining the problems and solver parameters 
+        # defining the problems and solver parameters
         vector_of_subproblems[s] = Model(() -> Gurobi.Optimizer(GRB_ENV))
         set_optimizer_attribute(vector_of_subproblems[s], "NonConvex", initial_parameters.gurobi_parameters.NonConvex)
         set_optimizer_attribute(vector_of_subproblems[s], "IntFeasTol",initial_parameters.gurobi_parameters.IntFeasTol)
@@ -275,7 +275,7 @@ function RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters
 
 end
 
-function RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_parameters::MIP_initial_parameters, generated_parameters::MIP_generated_parameters, precision_p::Array{Int64}, al_penalty_parameter::Float64)
+function RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_parameters::MIP_initial_parameters, generated_parameters::MIP_generated_parameters, precision_p::Array{Int64})
 
     # generate the starting values for the lagrangian multipliers
     vector_of_lambda_lagrangian = Array{Array{Float64}}(undef, initial_parameters.num_scen)
@@ -336,7 +336,7 @@ function RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_
             + sum( y[j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
             )
             + sum( vector_of_lambda_lagrangian[s] .* (x .- al_z) )
-            + initial_parameters.al_penalty_parameter/2 * sum( (x .- al_z) .* (x .- al_z) )
+            + sum( initial_parameters.al_penalty_parameter/2 .* (x .- al_z) .* (x .- al_z) )
 
             + initial_parameters.μ * sum(z[r] for r  = 1:initial_parameters.num_const )
 

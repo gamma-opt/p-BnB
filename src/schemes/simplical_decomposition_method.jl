@@ -42,7 +42,7 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
     for t = 1:t_max
 
-        w_t[t] = w_s .+ initial_parameters.al_penalty_parameter.* ((t==1 ? x_0 : x_t[t-1]) .- z_SDM)
+        w_t[t] = w_s .+ initial_parameters.al_penalty_parameter .* ((t==1 ? x_0 : x_t[t-1]) .- z_SDM)
 
         @objective( al_approximation, Min,
             -
@@ -126,7 +126,7 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
             )
 
             + sum( w_s .* (al_SDM[:x]) )
-            + initial_parameters.al_penalty_parameter/2 * sum( (al_SDM[:x] .- al_SDM[:al_z]) .* (al_SDM[:x] .- al_SDM[:al_z]) )
+            + sum( initial_parameters.al_penalty_parameter/2 .* (al_SDM[:x] .- al_SDM[:al_z]) .* (al_SDM[:x] .- al_SDM[:al_z]) )
 
             + initial_parameters.μ * sum(al_SDM[:z][r] for r  = 1:initial_parameters.num_const )
 

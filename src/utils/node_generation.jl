@@ -50,7 +50,7 @@ function zero_node_generation(initial_parameters::MIP_initial_parameters)
 
     if initial_parameters.RNMDT_is_used
         if initial_parameters.al_is_used
-            dual_subproblems = RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_parameters, generated_parameters, initial_parameters.RNMDT_precision_factor,initial_parameters.al_penalty_parameter)
+            dual_subproblems = RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_parameters, generated_parameters, initial_parameters.RNMDT_precision_factor)
         else
             dual_subproblems = RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters, generated_parameters, initial_parameters.RNMDT_precision_factor)
         end

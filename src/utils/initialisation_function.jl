@@ -52,7 +52,7 @@ g_μ = 10000000 # penality pramemeter for the objective
 
 # augmented lagrangian parameters
 g_al_is_used = true
-g_al_penalty_parameter = 2.0
+g_al_penalty_parameter = 2.0 * ones(g_frist_stage_variables_number)
 
 # parameters for the JuMP
 g_solver_time_limit = 3600 # in seconds

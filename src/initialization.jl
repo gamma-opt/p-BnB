@@ -25,6 +25,7 @@ include(src_link*"utils/initialisation_function.jl")
 include(src_link*"utils/FW_PH_V_0_initialisation.jl")
 include(src_link*"utils/nodes_fathom.jl")
 include(src_link*"utils/RNMDT_gap_computation.jl")
+include(src_link*"utils/penalty_parameter_update.jl")
 
 # schemes
 include(src_link*"schemes/bundle_method.jl")
@@ -33,12 +34,6 @@ include(src_link*"schemes/bnb_solve.jl")
 include(src_link*"schemes/dynamic_precision_based_RNMDT_LR_algorithm.jl")
 include(src_link*"schemes/FW-PH.jl")
 include(src_link*"schemes/simplical_decomposition_method.jl")
-
-## defining general intial parameters for the optimisation problem
-initial_parameters = initialisation(5,5,5,5,-1)
-
-## generating the structure containing the constraints and objective related parameters
-generated_parameters = parameters_generation(initial_parameters)
 
 ## defining the parameters values for BnB algorithm
 

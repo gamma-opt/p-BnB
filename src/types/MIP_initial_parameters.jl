@@ -14,7 +14,7 @@ Stores attributes for generating MIP JuMP model. Has the following fields:
 * `μ::Float64`:                                     Big enough constant use as a penalty parameter for the slack variables (to ensure full recourse)
 
 * `al_is_used::Bool`:                               Parameter that takes value TRUE if Augemnted lagrangian is used and FALSE otherwise
-* `al_penalty_parameter::Float64`:                  Augemnted lagrangian relaxation penalty parameter
+* `al_penalty_parameter::Array{Float64}`:           Augemnted lagrangian relaxation penalty parameter vector (with the penalty value for each component)
 
 * `solver_time_limit::Float64`:                     Time limit for the solver
 
@@ -52,7 +52,7 @@ mutable struct MIP_initial_parameters
 
     # augmented lagrangian related parameters
     al_is_used::Bool
-    al_penalty_parameter::Float64
+    al_penalty_parameter::Array{Float64}
 
     # parameters for the JuMP
     solver_time_limit::Float64
