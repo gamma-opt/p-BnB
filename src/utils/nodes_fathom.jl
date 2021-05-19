@@ -10,9 +10,9 @@ function nodes_fathom(X::bnb_model)
     # for which the pn_db > UBDg
     fathom_indices = findall(x -> x > X.UBDg, X.pn_db)
 
-    print("node_fathomed\n")
-    @show X.UBDg
-    @show X.pn_db[fathom_indices]
+    #print("node_fathomed\n")
+    #@show X.UBDg
+    #@show X.pn_db[fathom_indices]
 
     # fathoming the nodes at correspondent position
     splice!(X.nodes, fathom_indices)

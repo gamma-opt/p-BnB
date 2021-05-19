@@ -17,8 +17,8 @@ function node_selection(X::bnb_model)
 
     selcted_id = findlast( x -> x == min_pn_db, X.pn_db)
 
-    print("node selected with pn_db $(X.pn_db[selcted_id])")
-    @show X.pn_db
+    #print("node selected with pn_db $(X.pn_db[selcted_id])")
+    #@show X.pn_db
 
     return splice!(X.nodes, selcted_id), splice!(X.pn_db, selcted_id)
     #return splice!(X.nodes,length(X.nodes)), splice!(X.id,length(X.id))
