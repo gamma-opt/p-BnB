@@ -2,7 +2,7 @@
 src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
 #src_link =  "/Users/Fabricio/Documents/GitHub/BnB_Caroe-and-Schultz/src/"
 
-cd(src_link)
+cd(chop(src_link, tail = 4))
 using Pkg
 Pkg.activate(".")
 #Pkg.update()
@@ -237,7 +237,7 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
         end # for
 
     # if we only solve the RNMDT relaxations using global solver
-elseif experiments_methods[2] == 1
+    elseif experiments_methods[2] == 1
 
         # forming corresponding data frame
         output_df = DataFrame( num_of_scen = Int[], num_fs_var = Int[], num_ss_var = Int[], num_const = Int[], p_RNMDT = Int[], RNMDT_UB = Float64[], RNMDT_x = String[], RNMDT_time = Float64[], RNMDT_wy_gap = Float64[])
@@ -295,7 +295,7 @@ elseif experiments_methods[2] == 1
         end # for
 
     # if we only solve the RNMDT relaxations using developed BnB_WF-PH method
-elseif experiments_methods[3] == 1
+    elseif experiments_methods[3] == 1
 
         # forming corresponding data frame
         output_df = DataFrame( num_of_scen = Int[], num_fs_var = Int[], num_ss_var = Int[], num_const = Int[], p_RNMDT = Int[], BnB_UB = Float64[], BnB_LB = Float64[], BnB_x = String[], BnB_time = Float64[], BnB_wy_gap = Float64[], BnB_nodes_explored = Int[] )
