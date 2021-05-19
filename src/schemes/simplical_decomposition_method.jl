@@ -59,7 +59,7 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
         )
 
-        status = optimize!(al_approximation)
+        optimize!(al_approximation)
 
         # variable to store updated approximated first-stage variables values
         x_hat = value.(al_approximation[:x])

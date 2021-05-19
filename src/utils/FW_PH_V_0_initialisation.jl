@@ -40,8 +40,8 @@ function FW_PH_V_0_initialisation( bnb_node::node, w_s::Array{Array{Float64}})
         w_RNMDT_0[s] = value.(dual_subproblems[s][:w_RNMDT])
         z_0[s] = value.(dual_subproblems[s][:z])
 
-        @show z_0[s]
-        @show x_0[s]
+        #@show z_0[s]
+        #@show x_0[s]
 
         if s == 1
             V_0[s] = [[ x_0[s], y_0[s], w_RNMDT_0[s], z_0[s] ]]
@@ -59,7 +59,7 @@ function FW_PH_V_0_initialisation( bnb_node::node, w_s::Array{Array{Float64}})
                + initial_parameters.μ * sum(dual_subproblems[s][:z][r] for r  = 1:initial_parameters.num_const )
                )
 
-             print(dual_subproblems[s])
+             #print(dual_subproblems[s])
              @suppress optimize!(dual_subproblems[s])
              y_1[s] = value.(dual_subproblems[s][:y])
              w_RNMDT_1[s] = value.(dual_subproblems[s][:w_RNMDT])

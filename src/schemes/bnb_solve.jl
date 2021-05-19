@@ -15,7 +15,10 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
     # create first bnb_structure
     bnb_struct = bnb_model(initial_parameters)
     number_of_nodes_used = 0
-    i = 1
+    #i = 1
+
+
+    bnb_FW_iterations_output = []
 
     while length(bnb_struct.nodes) > 0
     #while i <= 1
@@ -40,8 +43,8 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
         if initial_parameters.al_is_used
             # generating intiial set V_0
             V_0, x_0 = FW_PH_V_0_initialisation(current_node, initial_centre_of_gravity)
-
-            x_k, y_k, w_RNMDT_k, z_FR_k, z_k, w_k, ϕ_k = FW_PH(current_node, V_0, x_0, initial_centre_of_gravity)
+            #@show V_0
+            x_k, y_k, w_RNMDT_k, z_FR_k, z_k, w_k, ϕ_k, dual_feasibility_condition, primal_dual_residial, feasibility_set = FW_PH(current_node, V_0, x_0, initial_centre_of_gravity, number_of_nodes_used)
             #@show z_FR_k
             x_0 = Array{Float64}(undef, initial_parameters.num_first_stage_var, initial_parameters.num_scen)
             [x_0[:,s] = x_k[s] for s = 1:initial_parameters.num_scen]
@@ -53,11 +56,17 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
             [w_RNMDT_0[:,:,s] = w_RNMDT_k[s] for s = 1:initial_parameters.num_scen]
 
             #@show x_0
-            current_node_output = dm_output(([ϕ_k]), [x_0, y_0, w_RNMDT_0])
+            current_node_output = dm_output((ϕ_k), [x_0, y_0, w_RNMDT_0])
         else
             current_node_output = proximal_bundle_method(current_node, initial_centre_of_gravity, 1e-9)
 
         end
+
+        # if we need to plot the FW iterations and we are at the root node
+        if initial_parameters.al_is_used && initial_parameters.PH_SDM_parameters.PH_plot && (number_of_nodes_used==1)
+            bnb_FW_iterations_output = [copy(current_node_output.dual_objective_value), dual_feasibility_condition, primal_dual_residial, feasibility_set]
+        end
+
         #print(current_node.dual_subproblems[1])
         #print(current_node.dual_subproblems[2])
         # if one of the subproblems was infeasible, fathom the node, throw an exception and
@@ -115,16 +124,15 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
                     bnb_struct.RNMDT_gap_wy = RNMDT_gap_computation(current_node_output.variables_values[2], current_node_output.variables_values[3])
                     push!(bnb_struct.soln_hist, current_avg_first_stage_var)
 
-                    # fathom the nodes who parent dual values are higher than current UBDg
-                    nodes_fathom(bnb_struct)
-
-
                     # update global LB if the node was not fathomed (if current_node_output.dual_objective_value[end]>bnb_struct.LBDg )
                     # and the dual bound at the current iteration is bigger than exsiting global lower bound
                     if  current_node_output.dual_objective_value[end] > bnb_struct.LBDg
                         bnb_struct.LBDg = current_node_output.dual_objective_value[end]
                         push!(bnb_struct.LBDg_hist, bnb_struct.LBDg)
                     end
+
+                    # fathom the nodes who parent dual values are higher than current UBDg
+                    nodes_fathom(bnb_struct)
 
                  end
 
@@ -187,6 +195,11 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
 
     end # while
 
-    return bnb_struct
 
+    # if we need to plot the FW iterations and we are at the root node
+    if initial_parameters.al_is_used && initial_parameters.PH_SDM_parameters.PH_plot
+        return (bnb_struct, bnb_FW_iterations_output)
+    else
+        return bnb_struct
+    end
 end #function

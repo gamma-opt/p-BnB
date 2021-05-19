@@ -1,4 +1,4 @@
-function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},1}}, x_0::Array{Array{Float64}}, w_0::Array{Array{Float64}} )
+function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},1}}, x_0::Array{Array{Float64}}, w_0::Array{Array{Float64}}, number_of_nodes_used::Int )
 
     # simplifying the notations
     initial_parameters = bnb_node.initial_parameters
@@ -28,10 +28,17 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
     y_k = Array{Array{Float64}}(undef, k_max, initial_parameters.num_scen)
     w_RNMDT_k = Array{Array{Float64}}(undef, k_max, initial_parameters.num_scen)
     z_FR_k = Array{Array{Float64}}(undef, k_max, initial_parameters.num_scen)
-    V_k = Array{AbstractArray{Vector{Array{Float64}},1}}(undef,k_max, initial_parameters.num_scen)
+    V_k = Array{AbstractArray{Vector{Array{Float64}},1}}(undef, k_max, initial_parameters.num_scen)
     #V_k = Array{Any}(undef, k_max, initial_parameters.num_scen)
     dual_value_k = Array{Float64}(undef, k_max, initial_parameters.num_scen)
 
+    # the output of FW-PH used to check the correctness of the method
+    dual_feasibility_condition = []
+    primal_dual_residial = []
+    feasibility_set = []
+
+    # fixing the time when we satrted the evaluations
+    FW_start_time = time()
     for k = 1:k_max
     #for k = 1:1
 
@@ -59,12 +66,30 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
 
         z_k[k] = sum(initial_parameters.scen_prob[s] .* x_k[k,s]  for s = 1:initial_parameters.num_scen)
 
+
         #@show ϕ_k[k]
         #@show z_k[k]
         #@show x_k[k,:]
+        #@show V_k[k,s]
 
-        if sqrt(sum( initial_parameters.scen_prob[s] .* norm(x_k[k,s] .- (k == 1 ? z_0 : z_k[k-1]) )^2 for s = 1 : initial_parameters.num_scen)) < PH_ϵ
-            return(x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[k])
+        if initial_parameters.PH_SDM_parameters.PH_plot && (number_of_nodes_used == 1)
+
+            dual_feasibility_condition_k = zeros(length(w_k[k,1]))
+            for s = 1 : initial_parameters.num_scen
+                dual_feasibility_condition_k = dual_feasibility_condition_k .+ initial_parameters.scen_prob[s] .* w_k[k,s]
+            end
+            push!(dual_feasibility_condition, dual_feasibility_condition_k)
+            push!(primal_dual_residial, sqrt(sum( initial_parameters.scen_prob[s] .* norm(x_k[k,s] .- (k == 1 ? z_0 : z_k[k-1]) )^2 for s = 1 : initial_parameters.num_scen)) )
+            push!(feasibility_set, V_k[k, :])
+        end
+
+        if (sqrt(sum( initial_parameters.scen_prob[s] .* norm(x_k[k,s] .- (k == 1 ? z_0 : z_k[k-1]) )^2 for s = 1 : initial_parameters.num_scen)) < PH_ϵ) || (time()-FW_start_time) > initial_parameters.PH_SDM_parameters.PH_max_time
+            #return(x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[1:k])
+            if initial_parameters.PH_SDM_parameters.PH_plot && (number_of_nodes_used == 1)
+                return (x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[1:k], dual_feasibility_condition, primal_dual_residial, feasibility_set)
+            else
+                return (x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[1:k], [], [], [])
+            end
         end
 
         #@show k
@@ -75,9 +100,13 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
 
     end
 
+    if initial_parameters.PH_SDM_parameters.PH_plot && (number_of_nodes_used == 1)
+        return (x_k[end, :], y_k[end, :], w_RNMDT_k[end, :], z_FR_k[end,:], z_k[end], w_k[end, :], ϕ_k[1:end], dual_feasibility_condition, primal_dual_residial, feasibility_set)
+    else
+        return (x_k[end, :], y_k[end, :], w_RNMDT_k[end, :], z_FR_k[end,:], z_k[end], w_k[end, :], ϕ_k[1:end], [], [], [])
+    end
 
 
-    #return(x_k[1,:], y_k[1,:], w_RNMDT_k[1,:])
-    return (x_k[end, :], y_k[end, :], w_RNMDT_k[end, :], z_FR_k[end,:], z_k[end], w_k[end, :], ϕ_k[end])
+
 
 end

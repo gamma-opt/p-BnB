@@ -98,10 +98,16 @@ bm_parameters = bm_input(bm_parallelisation_is_used,
 FW_PH_α = 1.0
 
 # defining the tolerance used for stopping criterion in FW-PH
-FW_PH_tolerance = 1E-6
+FW_PH_tolerance = 1E-8
 
 # defining the maximum number of iterations used in FW-PH
 PH_max_iter = 1000
+
+# The indicator whether we should or not plot the FW-PH porgrees for the root node of the BnB
+FW_PH_plot = true
+
+# the maximum time allowed for FW-PH to solve one instance
+FW_PH_PH_max_time = 3600
 
 # defining the tolerance used for stopping criterion in SDM
 SDM_tolerance = 0.0
@@ -113,6 +119,8 @@ PH_SDM_parameters = PH_SDM_input(
                         FW_PH_α,
                         FW_PH_tolerance,
                         PH_max_iter,
+                        FW_PH_plot,
+                        FW_PH_PH_max_time,
                         SDM_tolerance,
                         SDM_max_iter
                         )
