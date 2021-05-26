@@ -1,13 +1,16 @@
 """
-    SDM(V_t::Array{Array{Array{Float64}}}, )
-returns an mixed-integer optimisation problem
-a JuMP::model with the parameters token from "intial_parameters"
+    SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Float64}},1}, x_0::Array{Float64}, y_0::Array{Float64}, w_RNMDT_0::Array{Float64}, z_FR_0::Array{Float64},  w_s::Array{Float64}, z_SDM::Array{Float64}, t_max::Int, τ::Float64)
+    a function that is an implementation of the simlical decomposition method and returns the values of the decision variables, dual obejctive value and updated feasibility set V alongth with the info on how many times
+    the new candidate to enter it happend to already be in the set V
 
 """
 function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Float64}},1}, x_0::Array{Float64}, y_0::Array{Float64}, w_RNMDT_0::Array{Float64}, z_FR_0::Array{Float64},  w_s::Array{Float64}, z_SDM::Array{Float64}, t_max::Int, τ::Float64)
 
     # variable for storing the dual value
     dual_value_s = 0
+
+    # auxiliary variable to count how many times the new elemnt has already appeared in the set V
+    identical_appearance_count = 0
 
     # formulating initial finite set of points
     #V_t = Array{Any}(undef, t_max+1)
@@ -37,8 +40,11 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
     Γ_t = Array{Float64}(undef, 1, t_max)
 
     # auxiliary augmented lagrangian approximation problem
+    #al_approximation = bnb_node.dual_subproblems[scenario]
+
     al_approximation = copy(bnb_node.dual_subproblems[scenario])
-    set_optimizer(al_approximation, optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Method" => initial_parameters.gurobi_parameters.Method,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+
+    set_optimizer(al_approximation, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Method" => initial_parameters.gurobi_parameters.Method,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
 
     for t = 1:t_max
 
@@ -102,10 +108,17 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
         end
 
-        # adding new values for bound gap and finite set of points at iteration t
+        # adding new values for bound gap
         Γ_t[t] = Γ_t_value
         #V_t[t+1] = [x_hat, y_hat, w_RNMDT_hat, z_FR_hat] # since we also had 0 element
-        push!(V_t, [x_hat, y_hat, w_RNMDT_hat, z_FR_hat])
+
+        # check whether the elemnt is about to enter set V is already there
+        if feasibility_set_contains_element(V_t, [x_hat, y_hat, w_RNMDT_hat, z_FR_hat])
+            identical_appearance_count += 1
+        else # if not
+            # expanding finite set of point at iteration t
+            push!(V_t, [x_hat, y_hat, w_RNMDT_hat, z_FR_hat])
+        end
 
         #@show [x_hat, y_hat, w_RNMDT_hat, z_FR_hat]
         #@show V_t
@@ -113,7 +126,7 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
         # formulating new problem representing augmented lagrangian
         al_SDM = copy(bnb_node.dual_subproblems[scenario])
 
-        set_optimizer(al_SDM, optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
+        set_optimizer(al_SDM, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
 
         #defining the objective with the fixed values of the lagrangian multipliers
         @objective(al_SDM, Min,
@@ -164,11 +177,11 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
         #if bound gap is smaller than predefiend tolerance
         if Γ_t_value <= τ
-            return(x_t[t], y_t[t], w_RNMDT_t[t], z_FR_t[t], V_t, dual_value_s)
+            return(x_t[t], y_t[t], w_RNMDT_t[t], z_FR_t[t], V_t, dual_value_s, identical_appearance_count)
         end
 
     end
 
-    return(x_t[end], y_t[end], w_RNMDT_t[end], z_FR_t[end], V_t, dual_value_s)
+    return(x_t[end], y_t[end], w_RNMDT_t[end], z_FR_t[end], V_t, dual_value_s, identical_appearance_count)
 
 end

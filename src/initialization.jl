@@ -26,6 +26,7 @@ include(src_link*"utils/FW_PH_V_0_initialisation.jl")
 include(src_link*"utils/nodes_fathom.jl")
 include(src_link*"utils/RNMDT_gap_computation.jl")
 include(src_link*"utils/penalty_parameter_update.jl")
+include(src_link*"utils/auxiliary_find_repeated_elements_in_V.jl")
 
 # schemes
 include(src_link*"schemes/bundle_method.jl")

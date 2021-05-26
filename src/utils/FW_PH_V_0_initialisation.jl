@@ -1,3 +1,10 @@
+"""
+    function FW_PH_V_0_initialisation( bnb_node::node, w_s::Array{Array{Float64}})
+    The function generates the the initial feasibility set V_0 for the FW-PH and
+    also generates the x_0 value by solving lagrangian relaxation with the
+    dual multiplier values fixed to w_s
+"""
+
 function FW_PH_V_0_initialisation( bnb_node::node, w_s::Array{Array{Float64}})
 
     # simplifying the notation
@@ -18,7 +25,8 @@ function FW_PH_V_0_initialisation( bnb_node::node, w_s::Array{Array{Float64}})
 
     for s = 1:initial_parameters.num_scen
         dual_subproblems[s] = copy(bnb_node.dual_subproblems[s])
-        @suppress set_optimizer(dual_subproblems[s], optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,        "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
+        #dual_subproblems[s] = bnb_node.dual_subproblems[s]
+        @suppress set_optimizer(dual_subproblems[s], optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,        "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
 
         @objective(dual_subproblems[s], Min,
             -

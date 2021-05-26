@@ -141,6 +141,13 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
                                 FW_PH_output = DataFrame( iteration = 1:length(bnb_FW_iterations_output[2]), dual_deasibility_cond = dual_feasibility_output, primal_dual_residual = bnb_FW_iterations_output[3])
                                 XLSX.writetable(output_link*"$s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now()) * "Dual feas cond and primal dual res " * ".xlsx", FW_PH_output)
 
+                                # printing out the info on the identical etries in the feasibility set V
+                                io1 = open(output_link*" $s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now())* " feasibility set V identical entries count" * ".txt", "w")
+                                for s = 1:length(bnb_FW_iterations_output[5])
+                                        println(io1, "\n SCENARIO = $s : $(bnb_FW_iterations_output[5][s])")
+                                end
+                                close(io1)
+
                                 # Printing the fesibility set V resulting from each iteration of FW-PH applied to the root node
                                 io = open(output_link*" $s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now())* " feasibility set V " * ".txt", "w")
                                     # printing only for the first scenario to ease representation
@@ -354,6 +361,13 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
                                 FW_PH_output = DataFrame( iteration = 1:length(bnb_FW_iterations_output[2]), dual_deasibility_cond = dual_feasibility_output, primal_dual_residual = bnb_FW_iterations_output[3])
                                 XLSX.writetable(output_link*"$s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now()) * "Dual feas cond and primal dual res " * ".xlsx", FW_PH_output)
 
+                                # printing out the info on the identical etries in the feasibility set V
+                                io1 = open(output_link*" $s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now())* " feasibility set V identical entries count" * ".txt", "w")
+                                for s = 1:length(bnb_FW_iterations_output[5])
+                                        println(io1, "\n SCENARIO = $s : $(bnb_FW_iterations_output[5][s])")
+                                end
+                                close(io1)
+
                                 # Printing the fesibility set V resulting from each iteration of FW-PH applied to the root node
                                 io = open(output_link*" $s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now())* " feasibility set V " * ".txt", "w")
                                     # printing only for the first scenario to ease representation
@@ -415,7 +429,7 @@ end
 experiments_function(n_scenarios, fs_var, ss_var, const_num, experiments_methods, g_time_limit, p_min_value, p_fixed_value, output_link)
 
 experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -2, true, output_link)
-experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -3, true, output_link)
+experiments_function(5, 5, 5, 5, [0,0,1], g_time_limit, -3, true, output_link)
 experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -4, true, output_link)
 experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -5, true, output_link)
 experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -6, true, output_link)

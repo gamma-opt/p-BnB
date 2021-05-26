@@ -47,9 +47,9 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
             x_0_penalty = Array{Float64}(undef, initial_parameters.num_first_stage_var, initial_parameters.num_scen)
             [x_0_penalty[:,s] = x_0[s] for s = 1:initial_parameters.num_scen]
             current_node.initial_parameters.al_penalty_parameter = penalty_parameter_update(current_node.initial_parameters, current_node.generated_parameters, x_0_penalty)
-
+            @show current_node.initial_parameters.al_penalty_parameter
             #@show V_0
-            x_k, y_k, w_RNMDT_k, z_FR_k, z_k, w_k, ϕ_k, dual_feasibility_condition, primal_dual_residial, feasibility_set = FW_PH(current_node, V_0, x_0, initial_centre_of_gravity, number_of_nodes_used)
+            x_k, y_k, w_RNMDT_k, z_FR_k, z_k, w_k, ϕ_k, dual_feasibility_condition, primal_dual_residial, feasibility_set, identical_appearance_count = FW_PH(current_node, V_0, x_0, initial_centre_of_gravity, number_of_nodes_used)
             #@show z_FR_k
             x_0 = Array{Float64}(undef, initial_parameters.num_first_stage_var, initial_parameters.num_scen)
             [x_0[:,s] = x_k[s] for s = 1:initial_parameters.num_scen]
@@ -69,7 +69,7 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
 
         # if we need to plot the FW iterations and we are at the root node
         if initial_parameters.al_is_used && initial_parameters.PH_SDM_parameters.PH_plot && (number_of_nodes_used==1)
-            bnb_FW_iterations_output = [copy(current_node_output.dual_objective_value), dual_feasibility_condition, primal_dual_residial, feasibility_set]
+            bnb_FW_iterations_output = [copy(current_node_output.dual_objective_value), dual_feasibility_condition, primal_dual_residial, feasibility_set, identical_appearance_count]
         end
 
         #print(current_node.dual_subproblems[1])

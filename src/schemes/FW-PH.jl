@@ -1,3 +1,11 @@
+"""
+    function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},1}}, x_0::Array{Array{Float64}}, w_0::Array{Array{Float64}}, number_of_nodes_used::Int )
+        the function that is an implementation of the FW-PH method and depending on the initial parameter corresponding
+        to whether we should or should not print detaled output on the algorithm performance either returns
+        calculated optimal values of the variables and dual objective values or that and the auxiliary data
+        on the algorithm performance
+"""
+
 function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},1}}, x_0::Array{Array{Float64}}, w_0::Array{Array{Float64}}, number_of_nodes_used::Int )
 
     # simplifying the notations
@@ -36,10 +44,12 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
     dual_feasibility_condition = []
     primal_dual_residial = []
     feasibility_set = []
+    identical_appearance_count = zeros(initial_parameters.num_scen)
 
     # fixing the time when we satrted the evaluations
     FW_start_time = time()
     for k = 1:k_max
+
     #for k = 1:1
 
         #print("\n\n\nFW-PH ITERATION $k\n\n\n")
@@ -51,15 +61,19 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
             if k == 1
 
                 x_wave_s = (1 - α) .* z_0 + α .* x_0[s]
-                x_k[k,s], y_k[k,s], w_RNMDT_k[k,s], z_FR_k[k,s], V_k[k,s], dual_value_k[k,s] = SDM(s, bnb_node, V_0[s], x_wave_s, V_0[s][1][2], V_0[s][1][3], V_0[s][1][4], w_k[k,s], z_0, t_max, SDM_ϵ)
+                x_k[k,s], y_k[k,s], w_RNMDT_k[k,s], z_FR_k[k,s], V_k[k,s], dual_value_k[k,s], identical_appearance_count_s = SDM(s, bnb_node, V_0[s], x_wave_s, V_0[s][1][2], V_0[s][1][3], V_0[s][1][4], w_k[k,s], z_0, t_max, SDM_ϵ)
                 #@show x_k[k,s]
             else
 
                 x_wave_s = (1 - α) .* z_k[k-1] .+ α .* x_k[k-1,s]
-                x_k[k,s], y_k[k,s], w_RNMDT_k[k,s], z_FR_k[k,s], V_k[k,s], dual_value_k[k,s] = SDM(s, bnb_node, V_k[k-1,s], x_wave_s, y_k[k-1,s], w_RNMDT_k[k-1,s], z_FR_k[k-1,s], w_k[k,s], z_k[k-1], t_max, SDM_ϵ)
-
+                x_k[k,s], y_k[k,s], w_RNMDT_k[k,s], z_FR_k[k,s], V_k[k,s], dual_value_k[k,s], identical_appearance_count_s = SDM(s, bnb_node, V_k[k-1,s], x_wave_s, y_k[k-1,s], w_RNMDT_k[k-1,s], z_FR_k[k-1,s], w_k[k,s], z_k[k-1], t_max, SDM_ϵ)
 
             end
+
+        @show
+        # updating the info on how many times the elemnts in the set V_s have repeated
+        identical_appearance_count[s] += identical_appearance_count_s
+
         end
 
         ϕ_k[k] = sum(initial_parameters.scen_prob[s] .* dual_value_k[k,s]  for s = 1:initial_parameters.num_scen)
@@ -81,14 +95,16 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
             push!(dual_feasibility_condition, dual_feasibility_condition_k)
             push!(primal_dual_residial, sqrt(sum( initial_parameters.scen_prob[s] .* norm(x_k[k,s] .- (k == 1 ? z_0 : z_k[k-1]) )^2 for s = 1 : initial_parameters.num_scen)) )
             push!(feasibility_set, V_k[k, :])
+
+
         end
 
         if (sqrt(sum( initial_parameters.scen_prob[s] .* norm(x_k[k,s] .- (k == 1 ? z_0 : z_k[k-1]) )^2 for s = 1 : initial_parameters.num_scen)) < PH_ϵ) || (time()-FW_start_time) > initial_parameters.PH_SDM_parameters.PH_max_time
             #return(x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[1:k])
             if initial_parameters.PH_SDM_parameters.PH_plot && (number_of_nodes_used == 1)
-                return (x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[1:k], dual_feasibility_condition, primal_dual_residial, feasibility_set)
+                return (x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[1:k], dual_feasibility_condition, primal_dual_residial, feasibility_set, identical_appearance_count)
             else
-                return (x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[1:k], [], [], [])
+                return (x_k[k, :], y_k[k, :], w_RNMDT_k[k, :], z_FR_k[k,:], z_k[k], w_k[k, :], ϕ_k[1:k], [], [], [], [])
             end
         end
 
@@ -101,9 +117,9 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
     end
 
     if initial_parameters.PH_SDM_parameters.PH_plot && (number_of_nodes_used == 1)
-        return (x_k[end, :], y_k[end, :], w_RNMDT_k[end, :], z_FR_k[end,:], z_k[end], w_k[end, :], ϕ_k[1:end], dual_feasibility_condition, primal_dual_residial, feasibility_set)
+        return (x_k[end, :], y_k[end, :], w_RNMDT_k[end, :], z_FR_k[end,:], z_k[end], w_k[end, :], ϕ_k[1:end], dual_feasibility_condition, primal_dual_residial, feasibility_set, identical_appearance_count)
     else
-        return (x_k[end, :], y_k[end, :], w_RNMDT_k[end, :], z_FR_k[end,:], z_k[end], w_k[end, :], ϕ_k[1:end], [], [], [])
+        return (x_k[end, :], y_k[end, :], w_RNMDT_k[end, :], z_FR_k[end,:], z_k[end], w_k[end, :], ϕ_k[1:end], [], [], [], [])
     end
 
 
