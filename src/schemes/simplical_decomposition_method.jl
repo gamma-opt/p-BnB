@@ -47,9 +47,10 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
     set_optimizer(al_approximation, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Method" => initial_parameters.gurobi_parameters.Method,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
 
     for t = 1:t_max
-
+        @show t
         w_t[t] = w_s .+ initial_parameters.al_penalty_parameter .* ((t==1 ? x_0 : x_t[t-1]) .- z_SDM)
-
+        @show w_t[t]
+        
         @objective( al_approximation, Min,
             -
             ( sum(generated_parameters.objective_Qs[scenario][i, j] * al_approximation[:w_RNMDT][i, j]
@@ -176,7 +177,8 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
         z_FR_t[t] = value.(al_SDM[:z])
 
         #if bound gap is smaller than predefiend tolerance
-        if Γ_t_value <= τ
+        @show Γ_t[t]
+        if Γ_t[t] <= τ
             return(x_t[t], y_t[t], w_RNMDT_t[t], z_FR_t[t], V_t, dual_value_s, identical_appearance_count)
         end
 
