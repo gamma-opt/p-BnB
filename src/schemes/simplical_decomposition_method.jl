@@ -44,7 +44,8 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
     al_approximation = copy(bnb_node.dual_subproblems[scenario])
 
-    set_optimizer(al_approximation, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Method" => initial_parameters.gurobi_parameters.Method,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+    #set_optimizer(al_approximation, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Method" => initial_parameters.gurobi_parameters.Method,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
+    set_optimizer(al_approximation, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Method" => initial_parameters.gurobi_parameters.Method,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
 
     for t = 1:t_max
         @show t
@@ -84,8 +85,8 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
         # if we are at the very first iteration we use the starting values
         if t == 1
-            #@show x_0
-
+            @show x_hat
+            @show y_hat
             # updating dual value
             dual_value_s = objective_value(al_approximation)
 
@@ -125,9 +126,25 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
         #@show V_t
         #@show length(V_t)
         # formulating new problem representing augmented lagrangian
-        al_SDM = copy(bnb_node.dual_subproblems[scenario])
+        #al_SDM = copy(bnb_node.dual_subproblems[scenario])
+        #set_optimizer(al_SDM, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
+       
+        al_SDM = Model(optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
 
-        set_optimizer(al_SDM, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
+        # defining the variables for the al_SDM model 
+        # first stage decision variables
+        @variable(al_SDM, x[ 1 : initial_parameters.num_first_stage_var ] )
+        #JuMP.unset_integer.(al_SDM[:x][generated_parameters.x_cont_indexes, :])
+
+        # second stage decision variables
+        @variable(al_SDM, y[ 1 : initial_parameters.num_second_stage_var ] )
+        #[JuMP.unset_integer.(al_SDM[:y][generated_parameters.y_cont_indexes[:,j], j]) for j = 1:initial_parameters.num_scen]
+
+        # slack variables
+        @variable(al_SDM, z[ 1 : initial_parameters.num_const ] >=0 )
+
+        # RNMDT variables 
+        @variable(al_SDM,  w_RNMDT[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_second_stage_var ] )
 
         #defining the objective with the fixed values of the lagrangian multipliers
         @objective(al_SDM, Min,
@@ -140,18 +157,13 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
             )
 
             + sum( w_s .* (al_SDM[:x]) )
-            + sum( initial_parameters.al_penalty_parameter/2 .* (al_SDM[:x] .- al_SDM[:al_z]) .* (al_SDM[:x] .- al_SDM[:al_z]) )
+            + sum( initial_parameters.al_penalty_parameter/2 .* (al_SDM[:x] .- z_SDM) .* (al_SDM[:x] .- z_SDM) )
 
             + initial_parameters.μ * sum(al_SDM[:z][r] for r  = 1:initial_parameters.num_const )
 
         )
 
         #@show w_s
-
-
-        # fixing the value of the variable al_z
-        fix.(al_SDM[:al_z], z_SDM)
-        JuMP.unset_integer.(al_SDM[:al_z])
 
         # defining current length of V_t
         #cl_V_t = t+1 # since we have 0 elemnt as well - starting values
