@@ -17,31 +17,33 @@ function MIP_generation(initial_parameters::MIP_initial_parameters, generated_pa
     set_optimizer_attribute(original_problem, "FeasibilityTol", initial_parameters.gurobi_parameters.FeasibilityTol)
     set_optimizer_attribute(original_problem, "OptimalityTol", initial_parameters.gurobi_parameters.OptimalityTol)
     set_optimizer_attribute(original_problem, "Method", initial_parameters.gurobi_parameters.Method)
-    set_optimizer_attribute(original_problem, "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
+    #set_optimizer_attribute(original_problem, "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
     set_optimizer_attribute(original_problem, "Threads", initial_parameters.gurobi_parameters.Threads)
     set_optimizer_attribute(original_problem, "TimeLimit", initial_parameters.solver_time_limit)
 
     # first stage decision variables
-    @variable(original_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Int )
-    JuMP.unset_integer.(original_problem[:x][generated_parameters.x_cont_indexes, :])
+    @variable(original_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Bin)
+    #JuMP.unset_integer.(original_problem[:x][generated_parameters.x_cont_indexes, :])
 
     # second stage decision variables
     @variable(original_problem, y[ 1 : initial_parameters.num_second_stage_var, 1 : initial_parameters.num_scen ], Int)
     [JuMP.unset_integer.(original_problem[:y][generated_parameters.y_cont_indexes[:,j], j]) for j = 1:initial_parameters.num_scen]
 
     # slack variables
-    @variable(original_problem, z[ 1 : initial_parameters.num_scen, 1 : initial_parameters.num_const ] >=0 )
+    @variable(original_problem, z[ 1 : initial_parameters.num_scen, 1 : initial_parameters.num_const ] >= 0 )
 
     # quadratic objective
     @objective(original_problem, Min,
         #map_coefficients_inplace!(a -> round(a, digits=1),
-        -sum( initial_parameters.scen_prob[s] *
+        sum( initial_parameters.scen_prob[s] *
             (
                 sum( y[i, s] * generated_parameters.objective_Qs[s][i, j] * y[j, s] for i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var)
                 + sum( x[i, s] * generated_parameters.objective_c[i] for i = 1 : initial_parameters.num_first_stage_var)
                 + sum( y[i, s] * generated_parameters.objective_fs[s][i] for i = 1 : initial_parameters.num_second_stage_var)
-                - initial_parameters.μ * sum(z[s,r] for r  = 1:initial_parameters.num_const )
+                
             )
+            # slack variables 
+            + initial_parameters.μ * sum(z[s,r] for r  = 1:initial_parameters.num_const )
         for s in 1:initial_parameters.num_scen)
         )
         #)
@@ -50,8 +52,8 @@ function MIP_generation(initial_parameters::MIP_initial_parameters, generated_pa
     @constraint(original_problem, [s = 1 : initial_parameters.num_scen, i = 1 : initial_parameters.num_const ],
         sum( y[j, s] * generated_parameters.constraint_Qs[s][i][j,k] * y[k, s] for j = 1 : initial_parameters.num_second_stage_var, k = 1: initial_parameters.num_second_stage_var)
         + sum( x[j, s] * generated_parameters.constraint_fs[s][i][1, j] for j = 1 : initial_parameters.num_first_stage_var)
-        + sum( y[j, s] * generated_parameters.constraint_fs[s][i][2, j] for j = 1:  initial_parameters.num_second_stage_var)
-        + generated_parameters.constraint_fs[s][i][3, 1] + z[s, i]<= 0 )
+        + sum( y[j, s] * generated_parameters.constraint_fs[s][i][2, j] for j = 1 :  initial_parameters.num_second_stage_var)
+        - generated_parameters.constraint_fs[s][i][3, 1] + z[s, i] >= 0 )
 
     # box constraints for first stage variables
     @constraint(original_problem, [ s = 1 : initial_parameters.num_scen ],
@@ -105,7 +107,7 @@ function primal_problem_based_lagrangian_relaxation_generation(initial_parameter
 
 
         # first stage decision variables
-        @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Int )
+        @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Bin )
         JuMP.unset_integer.(vector_of_subproblems[s][:x][generated_parameters.x_cont_indexes])
 
         # second stage decision variables
@@ -117,14 +119,16 @@ function primal_problem_based_lagrangian_relaxation_generation(initial_parameter
 
         # quadratic objective
         @objective( vector_of_subproblems[s], Min,
-          - initial_parameters.scen_prob[s] *
+           initial_parameters.scen_prob[s] *
             (
             sum( y[i] * initial_parameters.scen_prob[s] * generated_parameters.objective_Qs[s][i, j] * y[j] for i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var)
             + sum( x[i] * initial_parameters.scen_prob[s] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
             + sum( y[j] * initial_parameters.scen_prob[s] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
-            - initial_parameters.μ * sum(z[r] for r  = 1:initial_parameters.num_const )
+            # slack variables
+            + initial_parameters.μ * sum(z[r] for r  = 1:initial_parameters.num_const )
             )
-
+            
+            # lagrangian multipliers related part
             +  sum( f_lambda_lagrangian( vector_of_lambda_lagrangian[:], s ) .* x )
             #+  sum( f_lambda_lagrangian( vector_of_lambda_lagrangian[:], s ) * x[i] for i = 1:initial_parameters.num_first_stage_var)
 
@@ -135,7 +139,7 @@ function primal_problem_based_lagrangian_relaxation_generation(initial_parameter
             sum( y[i] * generated_parameters.constraint_Qs[s][r][i, j] * y[j] for i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var)
             + sum( x[i] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_first_stage_var)
             + sum( y[j] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_second_stage_var )
-            + generated_parameters.constraint_fs[s][r][3, 1] + z[r] <= 0
+            - generated_parameters.constraint_fs[s][r][3, 1] + z[r] >= 0
         )
 
         # box constraints for first stage variables
@@ -180,7 +184,7 @@ function RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters
         set_optimizer_attribute(vector_of_subproblems[s], "NumericFocus", initial_parameters.gurobi_parameters.NumericFocus)
 
         # first stage decision variables
-        @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Int )
+        @variable( vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Bin )
         JuMP.unset_integer.(vector_of_subproblems[s][:x][generated_parameters.x_cont_indexes])
 
         # second stage decision variables
@@ -202,15 +206,17 @@ function RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters
 
         # quadratic objective
         @objective( vector_of_subproblems[s], Min,
-            - initial_parameters.scen_prob[s] *
+            initial_parameters.scen_prob[s] *
             ( sum(generated_parameters.objective_Qs[s][i, j] * w_RNMDT[i, j]
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
             + sum( x[i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
             + sum( y[j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
-            - initial_parameters.μ * sum(z[r] for r  = 1:initial_parameters.num_const )
+            # slack variables
+            + initial_parameters.μ * sum(z[r] for r  = 1:initial_parameters.num_const )
             )
 
+            # lagrangian multipliers related part 
             +  sum( f_lambda_lagrangian( vector_of_lambda_lagrangian[:], s ) .* x )
 
         )
@@ -222,7 +228,7 @@ function RNMDT_based_lagrangian_relaxation_problem_generation(initial_parameters
                 j = 1 : initial_parameters.num_second_stage_var)
             + sum( x[i] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_first_stage_var)
             + sum( y[j] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_second_stage_var )
-            + generated_parameters.constraint_fs[s][r][3, 1] + z[r] <= 0
+            - generated_parameters.constraint_fs[s][r][3, 1] + z[r] >= 0
         ) # 27
 
         # box constraints for first stage variables
@@ -302,11 +308,11 @@ function RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_
         set_optimizer_attribute(vector_of_subproblems[s], "NumericFocus", initial_parameters.gurobi_parameters.NumericFocus)
 
         # first stage decision variables
-        @variable(vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Int )
+        @variable(vector_of_subproblems[s], x[1 : initial_parameters.num_first_stage_var], Bin )
         JuMP.unset_integer.(vector_of_subproblems[s][:x][generated_parameters.x_cont_indexes])
 
         # non-anticipativity conditions variable (augmented lagrangian)
-        @variable(vector_of_subproblems[s], al_z[1 : initial_parameters.num_first_stage_var], Int )
+        @variable(vector_of_subproblems[s], al_z[1 : initial_parameters.num_first_stage_var]  )
         JuMP.unset_integer.(vector_of_subproblems[s][:al_z][generated_parameters.x_cont_indexes])
 
         # second stage decision variables
@@ -328,17 +334,18 @@ function RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_
 
         # quadratic objective
         @objective( vector_of_subproblems[s], Min,
-            - initial_parameters.scen_prob[s] *
+            initial_parameters.scen_prob[s] *
             ( sum(generated_parameters.objective_Qs[s][i, j] * w_RNMDT[i, j]
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
             + sum( x[i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
             + sum( y[j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
+            #slack variables 
+            + initial_parameters.μ * sum(z[r] for r  = 1:initial_parameters.num_const )
             )
             + sum( vector_of_lambda_lagrangian[s] .* (x .- al_z) )
-            + sum( initial_parameters.al_penalty_parameter/2 .* (x .- al_z) .* (x .- al_z) )
 
-            + initial_parameters.μ * sum(z[r] for r  = 1:initial_parameters.num_const )
+            + sum( initial_parameters.al_penalty_parameter/2 .* (x .- al_z) .* (x .- al_z) )
 
             #+  sum( f_lambda_lagrangian( vector_of_lambda_lagrangian[:], s ) .* x )
 
@@ -351,7 +358,7 @@ function RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_
                 j = 1 : initial_parameters.num_second_stage_var)
             + sum( x[i] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_first_stage_var)
             + sum( y[j] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_second_stage_var )
-            + generated_parameters.constraint_fs[s][r][3, 1] - z[r] <= 0
+            - generated_parameters.constraint_fs[s][r][3, 1] + z[r] >= 0
         ) # 27
 
         # box constraints for first stage variables
@@ -429,7 +436,7 @@ function RNMDT_based_problem_generation(initial_parameters::MIP_initial_paramete
     #set_optimizer_attribute(RNMDT_problem, "Presolve", 0)
 
     # first stage decision variables
-    @variable(RNMDT_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Int )
+    @variable(RNMDT_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Bin )
     JuMP.unset_integer.(RNMDT_problem[:x][generated_parameters.x_cont_indexes, :])
 
     # second stage decision variables
@@ -450,15 +457,17 @@ function RNMDT_based_problem_generation(initial_parameters::MIP_initial_paramete
 
     #quadratic objective
     @objective( RNMDT_problem, Min,
-        - sum( initial_parameters.scen_prob[s] *
+        sum( initial_parameters.scen_prob[s] *
             (
             sum(generated_parameters.objective_Qs[s][i, j] * w_RNMDT[i, j, s]
                     for i = 1 : initial_parameters.num_second_stage_var,
                         j = 1 : initial_parameters.num_second_stage_var)
                 + sum( x[i, s] * generated_parameters.objective_c[i] for i = 1:initial_parameters.num_first_stage_var)
                 + sum( y[j, s] * generated_parameters.objective_fs[s][j] for j = 1:initial_parameters.num_second_stage_var)
-                - initial_parameters.μ * sum(z[s,r] for r  = 1:initial_parameters.num_const )
+            # slack variables
+            + initial_parameters.μ * sum(z[s,r] for r  = 1:initial_parameters.num_const )          
             )
+            
         for s = 1 : initial_parameters.num_scen)
     ) # 26
 
@@ -469,7 +478,7 @@ function RNMDT_based_problem_generation(initial_parameters::MIP_initial_paramete
                 j = 1 : initial_parameters.num_second_stage_var)
         + sum( x[i, s] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_first_stage_var)
         + sum( y[j, s] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_second_stage_var )
-        + generated_parameters.constraint_fs[s][r][3, 1] + z[s,r] <= 0
+        - generated_parameters.constraint_fs[s][r][3, 1] + z[s,r] >= 0
     ) # 27
 
 ## auxiliary RNMDT constraints
@@ -532,7 +541,7 @@ function primal_problem_based_McCormic_relaxation(initial_parameters::MIP_initia
         McCormick_relaxation = Model( optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Threads" => initial_parameters.gurobi_parameters.Threads, "TimeLimit" => initial_parameters.solver_time_limit) )
 
         # first stage decision variables
-        @variable(McCormick_relaxation, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Int )
+        @variable(McCormick_relaxation, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], Bin )
         JuMP.unset_integer.(McCormick_relaxation[:x][generated_parameters.x_cont_indexes, :])
 
         # second stage decision variables
@@ -549,15 +558,18 @@ function primal_problem_based_McCormic_relaxation(initial_parameters::MIP_initia
 
         #quadratic objective
         @objective( McCormick_relaxation, Min,
-            - sum( initial_parameters.scen_prob[s] *
+            sum( initial_parameters.scen_prob[s] *
                 (
                 sum(generated_parameters.objective_Qs[s][i, j] * w_McCormick[i, j, s]
                         for i = 1 : initial_parameters.num_second_stage_var,
                             j = 1 : initial_parameters.num_second_stage_var)
                     + sum( x[i, s] * generated_parameters.objective_c[i] for i = 1:initial_parameters.num_first_stage_var)
                     + sum( y[j, s] * generated_parameters.objective_fs[s][j] for j = 1:initial_parameters.num_second_stage_var)
-                    - initial_parameters.μ * sum(z[s,r] for r  = 1:initial_parameters.num_const )
+                #slack variables
+                + initial_parameters.μ * sum(z[s,r] for r  = 1:initial_parameters.num_const )
                 )
+                
+                
             for s = 1 : initial_parameters.num_scen)
         ) # 26
 
@@ -568,7 +580,7 @@ function primal_problem_based_McCormic_relaxation(initial_parameters::MIP_initia
                     j = 1 : initial_parameters.num_second_stage_var)
             + sum( x[i, s] * generated_parameters.constraint_fs[s][r][1, i] for i = 1:initial_parameters.num_first_stage_var)
             + sum( y[j, s] * generated_parameters.constraint_fs[s][r][2, j] for j = 1:initial_parameters.num_second_stage_var )
-            + generated_parameters.constraint_fs[s][r][3, 1] + z[s,r] <= 0
+            - generated_parameters.constraint_fs[s][r][3, 1] + z[s,r] >= 0
         ) # 27
 
     ## auxiliary McCormick relaxation constraints

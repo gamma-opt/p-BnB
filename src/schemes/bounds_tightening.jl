@@ -9,13 +9,14 @@ function bounds_tightening(initial_parameters::MIP_initial_parameters,generated_
     JuMP.unset_integer.(bounds_tightening_problem[:x][:, :])
 
     @constraint(bounds_tightening_problem,
-        -sum( initial_parameters.scen_prob[s] *
+        sum( initial_parameters.scen_prob[s] *
             (
                 sum( bounds_tightening_problem[:y][i, s] * generated_parameters.objective_Qs[s][i, j] * bounds_tightening_problem[:y][j, s] for i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var)
                 + sum( bounds_tightening_problem[:x][i, s] * generated_parameters.objective_c[i] for i = 1 : initial_parameters.num_first_stage_var)
                 + sum( bounds_tightening_problem[:y][i, s] * generated_parameters.objective_fs[s][i] for i = 1 : initial_parameters.num_second_stage_var)
-                - initial_parameters.μ * sum( bounds_tightening_problem[:z][s,r] for r  = 1:initial_parameters.num_const )
+                
             )
+            + initial_parameters.μ * sum( bounds_tightening_problem[:z][s,r] for r  = 1:initial_parameters.num_const )
     for s in 1:initial_parameters.num_scen)
         <= f0
     )
