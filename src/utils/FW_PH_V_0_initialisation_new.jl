@@ -29,13 +29,12 @@ function FW_PH_V_0_initialisation( bnb_node::node, w_s::Array{Array{Float64}})
         @suppress set_optimizer(dual_subproblems[s], optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,        "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
 
         @objective(dual_subproblems[s], Min,
-            -
-            ( sum(generated_parameters.objective_Qs[s][i, j] * dual_subproblems[s][:w_RNMDT][i, j]
+            sum(generated_parameters.objective_Qs[s][i, j] * dual_subproblems[s][:w_RNMDT][i, j]
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
                 + sum( dual_subproblems[s][:x][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
                 + sum( dual_subproblems[s][:y][j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
-            )
+            
            + sum( w_s[s] .* (dual_subproblems[s][:x]) )
 
            + initial_parameters.μ * sum(dual_subproblems[s][:z][r] for r  = 1:initial_parameters.num_const )
@@ -56,13 +55,13 @@ function FW_PH_V_0_initialisation( bnb_node::node, w_s::Array{Array{Float64}})
         else
             fix.(dual_subproblems[s][:x], x_0[1])
             @objective(dual_subproblems[s], Min,
-                -
-                ( sum(generated_parameters.objective_Qs[s][i, j] * dual_subproblems[s][:w_RNMDT][i, j]
+                
+                sum(generated_parameters.objective_Qs[s][i, j] * dual_subproblems[s][:w_RNMDT][i, j]
                     for i = 1 : initial_parameters.num_second_stage_var,
                         j = 1 : initial_parameters.num_second_stage_var)
                     + sum( dual_subproblems[s][:x][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
                     + sum( dual_subproblems[s][:y][j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
-                )
+                
 
                + initial_parameters.μ * sum(dual_subproblems[s][:z][r] for r  = 1:initial_parameters.num_const )
                )

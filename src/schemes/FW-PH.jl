@@ -57,6 +57,7 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
         #@show s
         #for s = 1:initial_parameters.num_scen
         #print("\n\n\nSCENARIO $s\n\n\n")
+        
 
             if k == 1
 
@@ -70,7 +71,7 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
 
             end
 
-        @show
+            #@show V_k[k,s]
         # updating the info on how many times the elemnts in the set V_s have repeated
         identical_appearance_count[s] += identical_appearance_count_s
 
@@ -81,7 +82,7 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
         z_k[k] = sum(initial_parameters.scen_prob[s] .* x_k[k,s]  for s = 1:initial_parameters.num_scen)
 
 
-        #@show ϕ_k[k]
+        @show ϕ_k[k]
         #@show z_k[k]
         #@show x_k[k,:]
         #@show V_k[k,s]

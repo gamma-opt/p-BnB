@@ -14,7 +14,7 @@ include(src_link*"initialization.jl")
 # set unique envinronment for Gurobi
 const GRB_ENV = Gurobi.Env()
 
-# check whether th efolder for the "today" experiments exists
+# check whether the folder for the "today" experiments exists
 # and if not create one
 if !isdir(chop(src_link, tail = 4) * "experiments_" * string(Dates.today()))
     mkdir(chop(src_link, tail = 4) * "experiments_" * string(Dates.today()))
@@ -25,26 +25,25 @@ output_link = chop(src_link, tail = 4) * "experiments_" * string(Dates.today()) 
 ## Defining the initial parameters for the experiments
 
 # the number of scenarios
-n_scenarios = [5]
+n_scenarios = [5, 10, 15]
 # the number of the first stage variables / per scenario
-fs_var = [5]
+fs_var = [5, 10, 15]
 # the number of the second stage variabes / per scenario
-ss_var = [5]
+ss_var = [10, 15, 20]
 # the number of the constraints / per scenario
-const_num = [10, 15]
+const_num = [10, 15, 20]
 # Methods to be used [full scale, RNMDT, BnB]: 1 = use, 0 = don't use
-experiments_methods = [1, 1, 1]
+experiments_methods = [1, 0, 0]
 # The maximum time limit for the set of instances
 g_time_limit = 3600
-# Minimum precision factor value for RNMDT
-p_min_value = -3
-# the indicator whether we want the value of p to be fixed
-p_fixed_value = false
+# precision factor values to be considered for RNMDT
+p_value = [-2 -4 -6 -8]
+
 
 ## Constructing the experiments
 # the structure that will collect the experiments results
 
-function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiments_methods, g_time_limit, p_min_value, p_fixed_value, output_link )
+function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiments_methods, g_time_limit, p_values, output_link )
 
     # if we solve the instances using all the three methods
     if sum(experiments_methods) == length(experiments_methods)
@@ -56,9 +55,12 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
             for i_fs_var in fs_var
                 for i_ss_var in ss_var
                     for i_const_num in const_num
-
+                        
+                        # defining auxiliary variable to keep us track at which index we are at the p_values array 
+                        p_index = 1
+                        
                         # defining starting value of the precision factor
-                        p_fixed_value ? p = p_min_value : p = -1
+                        p = p_values[p_index]
 
                         # defining general intial parameters for the optimisation problem
                         initial_parameters = initialisation(s,i_fs_var,i_ss_var,i_const_num, p)
@@ -97,8 +99,20 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
                         # here we only consider BnB-related global time since it is our primal focus
                         # and it is generally assumed to be faster => allowing for solving higer of number of instances
                         # while precision factor is decreasing
-                        while (bnb_g_time < g_time_limit) && (p >= p_min_value)
+                        while (bnb_g_time < g_time_limit) && (p_index <= length(p_values))
+                            
+                            if p_index > 1
 
+                                p = p_values[p_index]
+
+                                # defining general intial parameters for the optimisation problem
+                                initial_parameters = initialisation(s,i_fs_var,i_ss_var,i_const_num, p)
+
+                                # generating the structure containing the constraints and objective related parameters
+                                generated_parameters = parameters_generation(initial_parameters)
+                            
+                            end
+                            
                             RNMDT_relaxation = RNMDT_based_problem_generation(initial_parameters, generated_parameters)
 
                             # if we did not exceed yet the overall time allowed for solving instances
@@ -139,17 +153,17 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
                                 end
                                 # Printing the dual_deasibility_condtion and primal_dual_residual resulting from iterations of FW-PH applied to the root node
                                 FW_PH_output = DataFrame( iteration = 1:length(bnb_FW_iterations_output[2]), dual_deasibility_cond = dual_feasibility_output, primal_dual_residual = bnb_FW_iterations_output[3])
-                                XLSX.writetable(output_link*"$s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now()) * "Dual feas cond and primal dual res " * ".xlsx", FW_PH_output)
+                                XLSX.writetable(output_link*"$(s)_$(i_fs_var)_$(i_ss_var)_$(i_const_num)_$(p)_" * string(Dates.now()) * "Dual feas cond and primal dual res " * ".xlsx", FW_PH_output)
 
                                 # printing out the info on the identical etries in the feasibility set V
-                                io1 = open(output_link*" $s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now())* " feasibility set V identical entries count" * ".txt", "w")
+                                io1 = open(output_link*"$(s)_$(i_fs_var)_$(i_ss_var)_$(i_const_num)_$(p)_" * string(Dates.now())* " feasibility set V identical entries count" * ".txt", "w")
                                 for s = 1:length(bnb_FW_iterations_output[5])
                                         println(io1, "\n SCENARIO = $s : $(bnb_FW_iterations_output[5][s])")
                                 end
                                 close(io1)
 
                                 # Printing the fesibility set V resulting from each iteration of FW-PH applied to the root node
-                                io = open(output_link*" $s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $p : prec_f" * string(Dates.now())* " feasibility set V " * ".txt", "w")
+                                io = open(output_link*"$(s)_$(i_fs_var)_$(i_ss_var)_$(i_const_num)_$(p)_" * string(Dates.now())* " feasibility set V " * ".txt", "w")
                                     # printing only for the first scenario to ease representation
                                     for i = 1:length(bnb_FW_iterations_output[4])
                                         println(io, "\n ITERATION = $i : $(length(bnb_FW_iterations_output[4][i][1]))")
@@ -181,14 +195,8 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
                                 push!(output_df, (s, i_fs_var, i_ss_var, i_const_num, p, primal_problem_f, primal_problem_x, primal_problem_optimality_gap, 0.0, "NaN", 0.0, 0.0, bnb_output.UBDg, bnb_output.LBDg, string(bnb_output.soln_val), bnb_p_final_time,  bnb_output.RNMDT_gap_wy, bnb_output.nodes_used ))
                             end # if
 
-                            # decreasing the value of the precision factor
-                            p -= 1
-
-                            # defining general intial parameters for the optimisation problem
-                            initial_parameters = initialisation(s,i_fs_var,i_ss_var,i_const_num, p)
-
-                            # generating the structure containing the constraints and objective related parameters
-                            generated_parameters = parameters_generation(initial_parameters)
+                            # moving forward among the values of the precision factor 
+                            p_index += 1
 
                             # saving the updated database after solving each instance (in case there are some technical issues stopping the code)
                             XLSX.writetable(output_link*"experiments"*string(Dates.now())*".xlsx", output_df)
@@ -196,11 +204,11 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
 
                         # ploting the FW-PH dual objective related output
                         for i = 1:length(FW_PH_dual_objective_output)
-                            plot(collect(1:length(FW_PH_dual_objective_output[i])), FW_PH_dual_objective_output[i], xlims = (0,FW_PH_max_iter_used), xlabel = "iterations", ylabel = "Dual value resulting from FW-PH root node", label  = "FW-PH", legend = :bottomleft, title = "$s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $(p_fixed_value ? p_min_value : -i) : prec_f")
+                            plot(collect(1:length(FW_PH_dual_objective_output[i])), FW_PH_dual_objective_output[i], xlims = (0,FW_PH_max_iter_used), xlabel = "iterations", ylabel = "Dual value resulting from FW-PH root node", label  = "FW-PH", legend = :bottomleft, title = "$(s)_$(i_fs_var)_$(i_ss_var)_$(i_const_num)_$(p)_")
                             if RNMDT_global_solved[i]
                                 plot!(collect(1:FW_PH_max_iter_used), RNMDT_global_objective[i] .* ones(FW_PH_max_iter_used), label = "RNMDT")
                             end
-                            savefig(output_link*"$s : scen,$i_fs_var : fs_var, $i_ss_var : ss_var, $i_const_num : const, $(p_fixed_value ? p_min_value : -i) : prec_f" * " FW_PH_dual_value " * string(Dates.now()) * ".png")
+                            savefig(output_link*"$(s)_$(i_fs_var)_$(i_ss_var)_$(i_const_num)_$(p)_" * " FW_PH_dual_value " * string(Dates.now()) * ".png")
                         end
 
 
@@ -220,6 +228,12 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
                 for i_ss_var in ss_var
                     for i_const_num in const_num
 
+                        # defining auxiliary variable to keep us track at which index we are at the p_values array 
+                        p_index = 1
+                        
+                        # defining starting value of the precision factor
+                        p = p_values[p_index]
+
                         # defining general intial parameters for the optimisation problem
                         initial_parameters = initialisation(s,i_fs_var,i_ss_var,i_const_num, p)
 
@@ -232,10 +246,36 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
                         primal_problem_f = objective_value(primal_problem)
                         primal_problem_x = string(value.(primal_problem[:x][:,1]))
                         primal_problem_optimality_gap = MOI.get(primal_problem, MOI.RelativeGap())
+                        
+                        while (p_index <= length(p_values))
+                            
+                            if p_index > 1
+
+                                p = p_values[p_index]
+
+                                # defining general intial parameters for the optimisation problem
+                                initial_parameters = initialisation(s,i_fs_var,i_ss_var,i_const_num, p)
+
+                                # generating the structure containing the constraints and objective related parameters
+                                generated_parameters = parameters_generation(initial_parameters)
+
+                                # solving the full scale problem using global solver
+                                primal_problem = MIP_generation(initial_parameters, generated_parameters)
+                                @suppress optimize!(primal_problem)
+                                primal_problem_f = objective_value(primal_problem)
+                                primal_problem_x = string(value.(primal_problem[:x][:,1]))
+                                primal_problem_optimality_gap = MOI.get(primal_problem, MOI.RelativeGap())
+                            
+                            end
 
                         push!(output_df, (s, i_fs_var, i_ss_var, i_const_num, 0 , primal_problem_f, primal_problem_x, primal_problem_optimality_gap))
+                        
+                        # moving forward among the values of the precision factor 
+                        p_index += 1
 
-                            # saving the updated database after solving each instance (in case there are some technical issues stopping the code)
+                        end
+                        
+                        # saving the updated database after solving each instance (in case there are some technical issues stopping the code)
                         XLSX.writetable(output_link*"experiments"*string(Dates.now())*".xlsx", output_df)
 
                     end # for
@@ -420,24 +460,72 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
             end # for
         end # for
 
-
     end # if
 
 end
 
 
-experiments_function(n_scenarios, fs_var, ss_var, const_num, experiments_methods, g_time_limit, p_min_value, p_fixed_value, output_link)
+experiments_function(n_scenarios, fs_var, ss_var, const_num, experiments_methods, g_time_limit, p_value, output_link)
 
-experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -2, true, output_link)
-experiments_function(5, 5, 5, 5, [0,0,1], g_time_limit, -3, true, output_link)
-experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -4, true, output_link)
-experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -5, true, output_link)
-experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, -6, true, output_link)
-experiments_function(5, 5, 15, 5, [1,1,1], g_time_limit, -2, true, output_link)
-experiments_function(5, 5, 15, 5, [1,1,1], g_time_limit, -3, true, output_link)
-experiments_function(5, 5, 15, 15, [1,1,1], g_time_limit, -1, true, output_link)
-experiments_function(5, 5, 15, 15, [1,1,1], g_time_limit, -2, true, output_link)
-experiments_function(5, 5, 15, 15, [1,1,1], g_time_limit, -6, true, output_link)
-experiments_function(5, 5, 15, 15, [1,1,1], g_time_limit, -7, true, output_link)
-experiments_function(5, 7, 7, 7, [1,1,1], g_time_limit, -6, true, output_link)
-experiments_function(5, 10, 10, 10, [1,1,1], g_time_limit, -9, true, output_link)
+experiments_function(5, 5, 5, 5, [1,1,1], g_time_limit, [-1], output_link)
+
+experiments_function(5, 30, 50, 50, [1,1,1], g_time_limit, [-2], output_link)
+experiments_function(5, 40, 75, 75, [1,1,1], g_time_limit, [-2],  output_link)
+experiments_function(5, 50, 100, 100, [1,1,1], g_time_limit, [-2],  output_link)
+
+
+experiments_function(5, 30, 50, 50, [1,1,1], g_time_limit, [-5], output_link)
+experiments_function(5, 40, 75, 75, [1,1,1], g_time_limit, [-5],  output_link)
+experiments_function(5, 50, 100, 100, [1,1,1], g_time_limit, [-5],  output_link)
+
+
+experiments_function(5, 30, 50, 50, [1,1,1], g_time_limit, [-8], output_link)
+experiments_function(5, 40, 75, 75, [1,1,1], g_time_limit, [-8],  output_link)
+experiments_function(5, 50, 100, 100, [1,1,1], g_time_limit, [-8],  output_link)
+
+experiments_function(10, 30, 50, 50, [1,1,1], g_time_limit, [-2], output_link)
+experiments_function(10, 40, 75, 75, [1,1,1], g_time_limit, [-2],  output_link)
+experiments_function(10, 50, 100, 100, [1,1,1], g_time_limit, [-2],  output_link)
+
+experiments_function(10, 30, 50, 50, [1,1,1], g_time_limit, [-5], output_link)
+experiments_function(10, 40, 75, 75, [1,1,1], g_time_limit, [-5],  output_link)
+experiments_function(10, 50, 100, 100, [1,1,1], g_time_limit, [-5],  output_link)
+
+
+experiments_function(10, 30, 50, 50, [1,1,1], g_time_limit, [-8], output_link)
+experiments_function(10, 40, 75, 75, [1,1,1], g_time_limit, [-8],  output_link)
+experiments_function(10, 50, 100, 100, [1,1,1], g_time_limit, [-8],  output_link)
+
+experiments_function(15, 30, 50, 50, [1,1,1], g_time_limit, [-2], output_link)
+experiments_function(15, 40, 75, 75, [1,1,1], g_time_limit, [-2],  output_link)
+experiments_function(15, 50, 100, 100, [1,1,1], g_time_limit, [-2],  output_link)
+
+experiments_function(15, 30, 50, 50, [1,1,1], g_time_limit, [-5], output_link)
+experiments_function(15, 40, 75, 75, [1,1,1], g_time_limit, [-5],  output_link)
+experiments_function(15, 50, 100, 100, [1,1,1], g_time_limit, [-5],  output_link)
+
+
+experiments_function(15, 30, 50, 50, [1,1,1], g_time_limit, [-8], output_link)
+experiments_function(15, 40, 75, 75, [1,1,1], g_time_limit, [-8],  output_link)
+experiments_function(15, 50, 100, 100, [1,1,1], g_time_limit, [-8],  output_link)
+
+experiments_function(5, 5, 5, 5, [1,0,0], g_time_limit, [-5], output_link)
+
+## Generating and solving full-scale problem 
+
+# defining general intial parameters for the optimisation problem
+initial_parameters = initialisation(5,5,5,5,-1)
+
+# generating the structure containing the constraints and objective related parameters
+generated_parameters = parameters_generation(initial_parameters)
+
+# soving the full scale problem using global solver
+primal_problem = MIP_generation(initial_parameters, generated_parameters)
+
+print(primal_problem)
+optimize!(primal_problem)
+objective_value(primal_problem)
+value.(primal_problem[:x])
+value.(primal_problem[:z])
+value.(primal_problem[:y])
+

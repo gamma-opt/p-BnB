@@ -29,7 +29,7 @@ gurobi_parameters = gurobi_solver_parameters(Gurobi_Method,
 
 # parameters for the Random
 
-g_quadratic_matrices_density  = 0.1
+g_quadratic_matrices_density  = 0.3
 g_random_seed = 2
 
 #g_number_of_scenarios = 5
@@ -98,7 +98,7 @@ bm_parameters = bm_input(bm_parallelisation_is_used,
 FW_PH_α = 1.0
 
 # defining the tolerance used for stopping criterion in FW-PH
-FW_PH_tolerance = 1E-8
+FW_PH_tolerance = 1E-6
 
 # defining the maximum number of iterations used in FW-PH
 PH_max_iter = 1000

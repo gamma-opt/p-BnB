@@ -46,7 +46,7 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
 
             x_0_penalty = Array{Float64}(undef, initial_parameters.num_first_stage_var, initial_parameters.num_scen)
             [x_0_penalty[:,s] = x_0[s] for s = 1:initial_parameters.num_scen]
-            current_node.initial_parameters.al_penalty_parameter = 0.05 .* penalty_parameter_update(current_node.initial_parameters, current_node.generated_parameters, x_0_penalty)
+            current_node.initial_parameters.al_penalty_parameter = penalty_parameter_update(current_node.initial_parameters, current_node.generated_parameters, x_0_penalty)
 
             #@show V_0
             x_k, y_k, w_RNMDT_k, z_FR_k, z_k, w_k, ϕ_k, dual_feasibility_condition, primal_dual_residial, feasibility_set, identical_appearance_count = FW_PH(current_node, V_0, x_0, initial_centre_of_gravity, number_of_nodes_used)
@@ -77,7 +77,7 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
         # if one of the subproblems was infeasible, fathom the node, throw an exception and
         # move on to the next iteration immediately
         if current_node_output == false
-            print("one of the subproblems was INFEASIBLE: the node is fathomed\n")
+            #print("one of the subproblems was INFEASIBLE: the node is fathomed\n")
             continue
         end
         # end

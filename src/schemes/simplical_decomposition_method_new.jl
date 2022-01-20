@@ -53,17 +53,15 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
        # @show w_t[t]
         
         @objective( al_approximation, Min,
-            -
-            ( sum(generated_parameters.objective_Qs[scenario][i, j] * al_approximation[:w_RNMDT][i, j]
+        
+            sum(generated_parameters.objective_Qs[scenario][i, j] * al_approximation[:w_RNMDT][i, j]
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
                 + sum( al_approximation[:x][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
                 + sum( al_approximation[:y][j] * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
 
-                - sum( w_t[t] .* al_approximation[:x] )
-                - initial_parameters.μ * sum(al_approximation[:z][r] for r  = 1:initial_parameters.num_const )
-
-            )
+            + sum( w_t[t] .* al_approximation[:x] )
+            + initial_parameters.μ * sum(al_approximation[:z][r] for r  = 1:initial_parameters.num_const )
 
         )
 
@@ -91,20 +89,20 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
             dual_value_s = objective_value(al_approximation)
 
             # calculating the value of the bound gap at iteration t == 1
-            Γ_t_value  =  sum(generated_parameters.objective_Qs[scenario][i, j] * (w_RNMDT_hat[i, j] - w_RNMDT_0[i,j])
+            Γ_t_value  =  - sum(generated_parameters.objective_Qs[scenario][i, j] * (w_RNMDT_hat[i, j] - w_RNMDT_0[i,j])
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
-                + sum( (x_hat[i] - x_0[i]) * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
-                + sum( (y_hat[j] - y_0[j]) * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
+                - sum( (x_hat[i] - x_0[i]) * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
+                - sum( (y_hat[j] - y_0[j]) * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
                 - sum( w_t[t] .* (x_hat .- x_0) )
                 - initial_parameters.μ * sum( (z_FR_hat[r] - z_FR_0[r])  for r  = 1:initial_parameters.num_const )
         else
             # calculating the value of the bound gap at iteration t
-            Γ_t_value  =  sum(generated_parameters.objective_Qs[scenario][i, j] * (w_RNMDT_hat[i, j] - w_RNMDT_t[t-1][i,j])
+            Γ_t_value  =  - sum(generated_parameters.objective_Qs[scenario][i, j] * (w_RNMDT_hat[i, j] - w_RNMDT_t[t-1][i,j])
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
-                + sum( (x_hat[i] - x_t[t-1][i]) * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
-                + sum( (y_hat[j] - y_t[t-1][j]) * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
+                - sum( (x_hat[i] - x_t[t-1][i]) * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
+                - sum( (y_hat[j] - y_t[t-1][j]) * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
                 - sum( w_t[t] .* (x_hat .- x_t[t-1]) )
                 - initial_parameters.μ * sum( (z_FR_hat[r] - z_FR_t[t-1][r]) for r  = 1:initial_parameters.num_const )
 
@@ -149,13 +147,12 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
         #defining the objective with the fixed values of the lagrangian multipliers
         @objective(al_SDM, Min,
-            -
-            ( sum(generated_parameters.objective_Qs[scenario][i, j] * al_SDM[:w_RNMDT][i, j]
+
+            sum(generated_parameters.objective_Qs[scenario][i, j] * al_SDM[:w_RNMDT][i, j]
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
             + sum( al_SDM[:x][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
-            + sum( al_SDM[:y][j] * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
-            )
+            + sum( al_SDM[:y][j] * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var) 
 
             + sum( w_s .* (al_SDM[:x]) )
             + sum( initial_parameters.al_penalty_parameter/2 .* (al_SDM[:x] .- z_SDM) .* (al_SDM[:x] .- z_SDM) )

@@ -7,7 +7,7 @@ upper bound of the node, and `id` is the id number of the node.
 """
 function node_selection(X::bnb_model)
 
-    # first, find the minimum among all the parend dual bond values associated with each node.
+    # first, find the minimum among all the parent dual bound values associated with each node.
     min_pn_db = minimum(X.pn_db)
 
     # find the frist position from the top of the stack of the node the pn_db  =  min_pn_db

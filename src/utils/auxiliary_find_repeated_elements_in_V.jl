@@ -10,7 +10,7 @@ function arrays_equal(x, y)
     # introducing an auxiliary array of boolean values
     # at which (i,j) elemnt corresponds to whether the following statement is true or false
     # x[i,j] = y[i,j]
-    check_array = x .== y
+    check_array = x .≈ y
 
     # reshaping the array into a vector
     check_array = reshape(check_array, size(check_array,1)*size(check_array,2))

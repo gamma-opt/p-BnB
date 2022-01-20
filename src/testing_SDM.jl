@@ -39,6 +39,11 @@ z_0 = sum(initial_parameters.scen_prob[s] .* x_0[s]  for s = 1:initial_parameter
 w_1 =  Array{Array{Float64}}(undef, initial_parameters.num_scen)
 [ w_1[s] = w_0[s] .+ initial_parameters.al_penalty_parameter .* (x_0[s] .- z_0) for s = 1:initial_parameters.num_scen ]
 
+#w_g =  Array{Array{Float64}}(undef, initial_parameters.num_scen)
+#[ w_g[s] =  w_1[s] .+ initial_parameters.al_penalty_parameter .* (x_0[s] .- z_0) for s = 1:initial_parameters.num_scen ]
+
+w_g = w_1
+
 # checking dual feasibility condition 
 dual_feasibility_condition = zeros(length(w_1[1]))
 for s = 1 : initial_parameters.num_scen
@@ -51,40 +56,65 @@ println("dual feasibility condition: $(dual_feasibility_condition)")
 # defining the array to store the dual objective values of the augmented lagrangian scenario-subproblems solved with Gurobi
 Gurobi_solved_ag_subproblems = []
 
+# defining the array to store the dual objective values of the augmented lagrangian scenario-subproblems solved with Gurobi
+# after rounding the variables values 
+Gurobi_rounded_solved_ag_subproblems = []
+
+# defining the array to store the optimal values of the variables
+x_g = Array{Array{Float64}}(undef, initial_parameters.num_scen)
+y_g = Array{Array{Float64}}(undef, initial_parameters.num_scen)
+w_RNMDT_g = Array{Array{Float64}}(undef, initial_parameters.num_scen)
+z_g = Array{Array{Float64}}(undef, initial_parameters.num_scen)
+
 # fixing the values of the variable z and dual multipliers in the objective of the augmented lagrangian 
 for s = 1:initial_parameters.num_scen
 
     #defining the objective with the fixed values of the lagrangian multipliers
-    @objective(ag_lagranigan_problem[s], Min,
-    -
-    ( sum(generated_parameters.objective_Qs[s][i, j] * ag_lagranigan_problem[s][:w_RNMDT][i, j]
+    @objective(ag_lagranigan_problem[s], Min, -
+        ( sum(generated_parameters.objective_Qs[s][i, j] * ag_lagranigan_problem[s][:w_RNMDT][i, j]
         for i = 1 : initial_parameters.num_second_stage_var,
             j = 1 : initial_parameters.num_second_stage_var)
-    + sum( ag_lagranigan_problem[s][:x][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
-    + sum( ag_lagranigan_problem[s][:y][j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
-    )
+        + sum( ag_lagranigan_problem[s][:x][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
+        + sum( ag_lagranigan_problem[s][:y][j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var)
+        )
 
-    + sum( w_1[s] .* (ag_lagranigan_problem[s][:x]) )
-    + sum( initial_parameters.al_penalty_parameter/2 .* (ag_lagranigan_problem[s][:x] .- ag_lagranigan_problem[s][:al_z]) .* (ag_lagranigan_problem[s][:x] .- ag_lagranigan_problem[s][:al_z]) )
+        + sum( w_g[s] .* (ag_lagranigan_problem[s][:x]) )
+        + sum( initial_parameters.al_penalty_parameter/2 .* (ag_lagranigan_problem[s][:x] .- z_0) .* (ag_lagranigan_problem[s][:x] .- z_0) )
 
-    + initial_parameters.μ * sum(ag_lagranigan_problem[s][:z][r] for r  = 1:initial_parameters.num_const )
-
+        + initial_parameters.μ * sum(ag_lagranigan_problem[s][:z][r] for r  = 1:initial_parameters.num_const )
     )
         
     # fixing the value of the variable al_z
     
-    if sum(is_integer.((ag_lagranigan_problem[s][:al_z]))) == length((ag_lagranigan_problem[s][:al_z]))
-        JuMP.unset_integer.(ag_lagranigan_problem[s][:al_z])
-    end
+    #if sum(is_integer.((ag_lagranigan_problem[s][:al_z]))) == length((ag_lagranigan_problem[s][:al_z]))
+        #JuMP.unset_integer.(ag_lagranigan_problem[s][:al_z])
+    #end
 
-    fix.(ag_lagranigan_problem[s][:al_z], z_0)
+    #fix.(ag_lagranigan_problem[s][:al_z], z_0)
 
     optimize!(ag_lagranigan_problem[s])
+    
+    # saving rounded optimal values of the variables
+    x_g[s] = round.(value.(ag_lagranigan_problem[s][:x]), digits = 4)
+    y_g[s] = round.(value.(ag_lagranigan_problem[s][:y]), digits = 4)
+    w_RNMDT_g[s] = round.(value.(ag_lagranigan_problem[s][:w_RNMDT]), digits = 4)
+    z_g[s] = round.(value.(ag_lagranigan_problem[s][:z]), digits = 4)
+
+    # reculculating the objective using those values 
+    objecive_reculculated = - ( sum(generated_parameters.objective_Qs[s][i, j] * w_RNMDT_g[s][i, j] for i = 1 : initial_parameters.num_second_stage_var, j = 1 : initial_parameters.num_second_stage_var) + sum( x_g[s][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var) + sum( y_g[s][j] * generated_parameters.objective_fs[s][j]  for j = 1:initial_parameters.num_second_stage_var) ) + sum( w_g[s] .* (x_g[s]) ) + sum( initial_parameters.al_penalty_parameter/2 .* (x_g[s].- z_0) .* (x_g[s].- z_0) ) + initial_parameters.μ * sum(z_g[s][r] for r  = 1:initial_parameters.num_const )
+
+    # stroing the value of the dual objective calcualted by gurobi 
     push!(Gurobi_solved_ag_subproblems, objective_value(ag_lagranigan_problem[s]))
 
-end
+    # storing the value of the dual objective calcualted by gurobi  after rounding the variables values
+    push!(Gurobi_rounded_solved_ag_subproblems, objecive_reculculated)
+
+end 
 Gurobi_solved_ag = sum( initial_parameters.scen_prob .* Gurobi_solved_ag_subproblems)
 println("Gurobi solved instance: $Gurobi_solved_ag")
+
+Gurobi_rounded_solved_ag = sum( initial_parameters.scen_prob .* Gurobi_rounded_solved_ag_subproblems)
+println("Gurobi solved instance (rounded): $Gurobi_rounded_solved_ag")
 
 
 ## solving the the agumented lagrangian with SDM 
@@ -94,9 +124,12 @@ SDM_solved_ag_subproblems = []
 
 for s = 1:initial_parameters.num_scen
     SDM_output = SDM(s, current_node, V_0[s], x_0[s], V_0[s][1][2], V_0[s][1][3], V_0[s][1][4], w_1[s], z_0, 1000, 1e-8)
-    push!(SDM_solved_ag_subproblems, SDM_output[end - 1 ])
+    @show SDM_output[3]
+    push!(SDM_solved_ag_subproblems, SDM_output[end - 1])
 end
 
 SDM_solved_ag = sum(initial_parameters.scen_prob .* SDM_solved_ag_subproblems)
 
-println("SDM solved isntance $SDM_solved_ag ")
+println("SDM solved isntance $SDM_solved_ag")
+
+
