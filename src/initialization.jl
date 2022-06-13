@@ -8,11 +8,12 @@ include(src_link*"types/gurobi_solver_parameters.jl")
 include(src_link*"types/bundle_method_parameters.jl")
 include(src_link*"types/dynamic_precision_based_RNMDT_parameters.jl")
 include(src_link*"types/PH_SDM_initial_parameters.jl")
+include(src_link*"types/pooling_problem.jl")
 include(src_link*"types/MIP_initial_parameters.jl")
 include(src_link*"types/MIP_generated_parameters.jl")
 include(src_link*"types/node.jl")
 include(src_link*"types/bnb_model.jl")
-include(src_link*"types/pooling_problem.jl")
+
 
 
 # utils
