@@ -13,7 +13,7 @@ function pooling_MIP_generation(initial_parameters::MIP_initial_parameters, gene
     #set_optimizer_attribute(original_problem, "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
     set_optimizer_attribute(original_problem, "Threads", initial_parameters.gurobi_parameters.Threads)
     set_optimizer_attribute(original_problem, "TimeLimit", initial_parameters.solver_time_limit)
-    set_optimizer_attribute(RNMDT_problem, "Presolve", 0)
+    #set_optimizer_attribute(original_problem, "Presolve", 0)
 
     # first stage decision variables 
     @variable(original_problem, x[ 1 : initial_parameters.num_first_stage_var, 1 : initial_parameters.num_scen ], binary = initial_parameters.bin_con_fs, integer = !initial_parameters.bin_con_fs)

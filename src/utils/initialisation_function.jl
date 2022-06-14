@@ -82,6 +82,7 @@ g_μ = 10000000 # penality pramemeter for the objective
 g_pool_problem_is_used = true
 
 pp_primal_pool_problem_link = chop(src_link, tail = 4) * "pooling_problem_data"
+pp_print_out_variables_correlation_map = true
 pp_start_value_pooling_nodes = [1.0]
 g_flow_cost = 10
 g_pool_cost = 10
@@ -96,7 +97,7 @@ stoch_pp_source_node_max_value = 3.0
 
 g_stoc_ppm = stochastic_pooling_problem_parameters(stoch_pp_pool_max_capacity, stoch_pp_flow_max_capacity, stoch_pp_demand_min_value, stoch_pp_demand_max_value, stoch_pp_source_node_min_value, stoch_pp_source_node_max_value)
 
-g_pooling_problem_parameters = pooling_problem_parameters(pp_primal_pool_problem_link, pp_start_value_pooling_nodes, g_flow_cost, g_pool_cost, g_stoc_ppm)
+g_pooling_problem_parameters = pooling_problem_parameters(pp_primal_pool_problem_link, pp_print_out_variables_correlation_map, pp_start_value_pooling_nodes, g_flow_cost, g_pool_cost, g_stoc_ppm)
 #-----------------------------------------------------------------------------
 
 # augmented lagrangian parameters

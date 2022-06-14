@@ -66,6 +66,7 @@ end
 
 struct pooling_problem_parameters
     primal_pool_problem_link::String
+    print_out_variables_correlation_map::Bool
     start_value_pooling_nodes::Array{Float64}
     flow_cost::Float64
     pool_cost::Float64

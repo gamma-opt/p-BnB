@@ -150,5 +150,36 @@ function polling_problem_parameters_generation( model::JuMP.Model, number_of_sce
 
     generated_parameters = MIP_generated_parameters(constraint_Qs, constraint_fs, objective_Qs, objective_fs, objective_c, x_boundaries, x_int_indexes, x_cont_indexes, y_boundaries, y_int_indexes, y_cont_indexes)
 
+    # if we need to print out the correlation map between pooling problem variables and resulting problem variables indicies
+    if initial_parameters.pool_problem_is_used && initial_parameters.pool_prob_par.print_out_variables_correlation_map
+        # create an array that will contain left part 
+        pp_index = []
+        # create an array that will contain right part 
+        stoch_pp_index = []
+
+        push!(pp_index, "first-stage")
+        push!(stoch_pp_index, "variables")
+
+        for i = 1:length(Variables)
+            push!(pp_index, Variables[i].name)
+            push!(stoch_pp_index, "y["*string(Variables[i].index)*"]")
+        end
+        push!(pp_index, "second-stage")
+        push!(stoch_pp_index, "variables")
+
+        for i = 1:length(arc_var)
+            push!(pp_index, arc_var[i].name)
+            push!(stoch_pp_index, "x["*string(i)*"]")
+        end
+        
+        for i = 1:number_of_pools
+            push!(pp_index, "p"*string(i))
+            push!(stoch_pp_index, "x["*string(length(arc_var)+i)*"]")
+        end
+
+        map_df = DataFrame(pooling_problem=pp_index, stoch_pooling_problem=stoch_pp_index)
+        XLSX.writetable(initial_parameters.pool_prob_par.primal_pool_problem_link*"/map_var_name_index_"*string(Dates.today())*".xlsx",map_df, overwrite=true)
+    end 
+
     return  initial_parameters, generated_parameters, Variables, bub
 end 
