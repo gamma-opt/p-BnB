@@ -157,23 +157,27 @@ function polling_problem_parameters_generation( model::JuMP.Model, number_of_sce
         # create an array that will contain right part 
         stoch_pp_index = []
 
-        push!(pp_index, "first-stage")
-        push!(stoch_pp_index, "variables")
-
-        for i = 1:length(Variables)
-            push!(pp_index, Variables[i].name)
-            push!(stoch_pp_index, "y["*string(Variables[i].index)*"]")
-        end
         push!(pp_index, "second-stage")
         push!(stoch_pp_index, "variables")
 
+        for i = 1:length(Variables)
+            if Variables[i] in arc_var
+                push!(pp_index, "flow: " * Variables[i].name)
+            else 
+                push!(pp_index, Variables[i].name)
+            end
+            push!(stoch_pp_index, "y["*string(Variables[i].index)*"]")
+        end
+        push!(pp_index, "first-stage")
+        push!(stoch_pp_index, "binary variables")
+
         for i = 1:length(arc_var)
-            push!(pp_index, arc_var[i].name)
+            push!(pp_index, "decision on: " * arc_var[i].name)
             push!(stoch_pp_index, "x["*string(i)*"]")
         end
         
         for i = 1:number_of_pools
-            push!(pp_index, "p"*string(i))
+            push!(pp_index, "decision on: " * "p"*string(i))
             push!(stoch_pp_index, "x["*string(length(arc_var)+i)*"]")
         end
 

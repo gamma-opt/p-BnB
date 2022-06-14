@@ -32,6 +32,7 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
 
                         # if we are using the given pooling problem structure to build up a stochastic instance
                         if initial_parameters.pool_problem_is_used
+                            print("THE POOLING PROBLEM IS USED TO CREATE TEST INSTANCES\n")
                             # create a pooling problem 
                             model, bub = pooling_problem_one_layer_pools(initial_parameters.pool_prob_par.primal_pool_problem_link, initial_parameters.pool_prob_par.start_value_pooling_nodes)
                             # generate necessary parameters given the pooling problem and stochasticity related parameters to be introduced
@@ -225,6 +226,7 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
 
                         # if we are using the given pooling problem structure to build up a stochastic instance
                         if initial_parameters.pool_problem_is_used
+                                print("THE POOLING PROBLEM IS USED TO CREATE TEST INSTANCES\n")
                                 # create a pooling problem 
                                 model, bub = pooling_problem_one_layer_pools(initial_parameters.pool_prob_par.primal_pool_problem_link, initial_parameters.pool_prob_par.start_value_pooling_nodes)
                                 # generate necessary parameters given the pooling problem and stochasticity related parameters to be introduced
@@ -313,6 +315,7 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
 
                         # if we are using the given pooling problem structure to build up a stochastic instance
                         if initial_parameters.pool_problem_is_used
+                            print("THE POOLING PROBLEM IS USED TO CREATE TEST INSTANCES\n")
                             # create a pooling problem 
                             model, bub = pooling_problem_one_layer_pools(initial_parameters.pool_prob_par.primal_pool_problem_link, initial_parameters.pool_prob_par.start_value_pooling_nodes)
                             # generate necessary parameters given the pooling problem and stochasticity related parameters to be introduced
@@ -409,6 +412,7 @@ function experiments_function(n_scenarios, fs_var, ss_var, const_num, experiment
 
                         # if we are using the given pooling problem structure to build up a stochastic instance
                         if initial_parameters.pool_problem_is_used
+                            print("THE POOLING PROBLEM IS USED TO CREATE TEST INSTANCES\n")
                             # create a pooling problem 
                             model, bub = pooling_problem_one_layer_pools(initial_parameters.pool_prob_par.primal_pool_problem_link, initial_parameters.pool_prob_par.start_value_pooling_nodes)
                             # generate necessary parameters given the pooling problem and stochasticity related parameters to be introduced

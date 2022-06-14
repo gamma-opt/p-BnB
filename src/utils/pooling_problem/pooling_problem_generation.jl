@@ -36,7 +36,7 @@ function pooling_problem_one_layer_pools(src_link::String, pool_start_value::Arr
 
     ## Define solver
     pooling_problem = Model(() -> Gurobi.Optimizer(GRB_ENV))
-    set_optimizer_attribute(pooling_problem, "NonConvex", 2)
+    @suppress set_optimizer_attribute(pooling_problem, "NonConvex", 2)
 
     ## Variables
     @variable(pooling_problem, x[A] >= 0)       # Arc flows

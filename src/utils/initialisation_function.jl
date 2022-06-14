@@ -102,6 +102,7 @@ g_pooling_problem_parameters = pooling_problem_parameters(pp_primal_pool_problem
 
 # augmented lagrangian parameters
 g_al_is_used = true
+# penalty parameter related parameters
 g_al_is_fixed = false
 g_al_start_value = 2.0
 g_al_penalty_parameter = g_al_start_value * ones(g_frist_stage_variables_number)

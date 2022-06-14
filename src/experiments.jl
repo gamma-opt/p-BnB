@@ -26,7 +26,7 @@ output_link = chop(src_link, tail = 4) * "experiments_" * string(Dates.today()) 
 ## Defining the initial parameters for the experiments
 
 # the number of scenarios
-n_scenarios = [20]
+n_scenarios = [1]
 # the number of the first stage variables / per scenario
 fs_var = [5]
 # the number of the second stage variabes / per scenario
@@ -34,7 +34,7 @@ ss_var = [10]
 # the number of the constraints / per scenario
 const_num = [10]
 # Methods to be used [full scale, RNMDT, BnB]: 1 = use, 0 = don't use
-experiments_methods = [0, 0, 1]
+experiments_methods = [1, 1, 1]
 # The maximum time limit for the set of instances
 g_time_limit = 3600
 # precision factor values to be considered for RNMDT
@@ -42,7 +42,7 @@ p_value = [-1]
 
 experiments_function(n_scenarios, fs_var, ss_var, const_num, experiments_methods, g_time_limit, p_value, output_link)
 
-experiments_function(2, 10, 10, 10, [0,0,1], g_time_limit, [-1], output_link)
+#experiments_function(2, 10, 10, 10, [0,0,1], g_time_limit, [-1], output_link)
 
 
 ##----------------------------HERE THE DEBUGGING CODE IS LOCATED-------------------------------------------------
