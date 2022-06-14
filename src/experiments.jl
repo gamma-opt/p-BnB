@@ -1,3 +1,4 @@
+# Write here the local repository address
 #src_link  =  "/scratch/work/belyakn1/BnB_p_lagrangian/src/"
 src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
 #src_link =  "/Users/Fabricio/Documents/GitHub/BnB_Caroe-and-Schultz/src/"
