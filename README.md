@@ -52,7 +52,7 @@ This repository contains the implememntation of the [Carøe and Schultz](https:/
     - ### 2.b. Pooling problem with one pools layer based stochastic instances
         If you want the test instance to be generated based on exisiting pooling problem with one pools layer then 
         - in the folder `pooling_problem_data` fill in the data about the pooling problem you are going to use regarding arcs and nodes in `arcs.csv` and `nodes.csv` files respectively.
-        - go back to step ##1.## and fill in the data for the section denoted with `pooling section parameters`
+        - go back to step 1. and fill in the data for the section denoted with `pooling section parameters`
         - do the step 2.a but consider that the parameters `fs_var`, `ss_var` and `const_num` will be altered to match the values from  resulting stochastic instance based on the pooling problem.
 3. ## Running example instance
     Inside the `src` directory we have `experiments.jl` file that contains the example on how to run the algorithms using function 
