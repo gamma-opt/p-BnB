@@ -43,29 +43,31 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
     #al_approximation = bnb_node.dual_subproblems[scenario]
 
     al_approximation = copy(bnb_node.dual_subproblems[scenario])
-    
+
     #set_optimizer(al_approximation, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Method" => initial_parameters.gurobi_parameters.Method,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
     set_optimizer(al_approximation, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Method" => initial_parameters.gurobi_parameters.Method,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
 
     for t = 1:t_max
         #@show t
         w_t[t] = w_s .+ initial_parameters.al_penalty_parameter .* ((t==1 ? x_0 : x_t[t-1]) .- z_SDM)
-       # @show w_t[t]
-       
-        @objective( al_approximation, Min,
+        #@show w_t[t]
         
-            sum(generated_parameters.objective_Qs[scenario][i, j] * al_approximation[:w_RNMDT][i, j]
+        @objective( al_approximation, Min,
+            -
+            ( sum(generated_parameters.objective_Qs[scenario][i, j] * al_approximation[:w_RNMDT][i, j]
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
                 + sum( al_approximation[:x][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
                 + sum( al_approximation[:y][j] * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
 
-            + sum( w_t[t] .* al_approximation[:x] )
-            + initial_parameters.μ * sum(al_approximation[:z][r] for r  = 1:initial_parameters.num_const )
+                - sum( w_t[t] .* al_approximation[:x] )
+                - initial_parameters.μ * sum(al_approximation[:z][r] for r  = 1:initial_parameters.num_const )
+
+            )
 
         )
-        
-         optimize!(al_approximation)
+
+        optimize!(al_approximation)
 
         # variable to store updated approximated first-stage variables values
         x_hat = value.(al_approximation[:x])
@@ -80,7 +82,7 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
         # variable to store updated approximated auxiliary variables z values ensuring full recourse
         z_FR_hat = value.(al_approximation[:z])
 
-                   
+
         # if we are at the very first iteration we use the starting values
         if t == 1
             #@show x_hat
@@ -89,22 +91,22 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
             dual_value_s = objective_value(al_approximation)
 
             # calculating the value of the bound gap at iteration t == 1
-            Γ_t_value  =  - sum(generated_parameters.objective_Qs[scenario][i, j] * (w_RNMDT_hat[i, j] - w_RNMDT_0[i,j])
+            Γ_t_value  =  sum(generated_parameters.objective_Qs[scenario][i, j] * (w_RNMDT_hat[i, j] - w_RNMDT_0[i,j])
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
-                - sum( (x_hat[i] - x_0[i]) * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
-                - sum( (y_hat[j] - y_0[j]) * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
+                + sum( (x_hat[i] - x_0[i]) * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
+                + sum( (y_hat[j] - y_0[j]) * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
                 - sum( w_t[t] .* (x_hat .- x_0) )
                 - initial_parameters.μ * sum( (z_FR_hat[r] - z_FR_0[r])  for r  = 1:initial_parameters.num_const )
         else
             # calculating the value of the bound gap at iteration t
-            Γ_t_value  =  - sum(generated_parameters.objective_Qs[scenario][i, j] * (w_RNMDT_hat[i, j] - w_RNMDT_t[t-1][i,j])
+            Γ_t_value  =  sum(generated_parameters.objective_Qs[scenario][i, j] * (w_RNMDT_hat[i, j] - w_RNMDT_t[t-1][i,j])
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
-                - sum( (x_hat[i] - x_t[t-1][i]) * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
-                - sum( (y_hat[j] - y_t[t-1][j]) * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
+                + sum( (x_hat[i] - x_t[t-1][i]) * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
+                + sum( (y_hat[j] - y_t[t-1][j]) * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
                 - sum( w_t[t] .* (x_hat .- x_t[t-1]) )
-                - initial_parameters.μ * sum( (z_FR_hat[r] - z_FR_t[t-1][r]) for r  = 1:initial_parameters.num_const )
+                - initial_parameters.μ * sum( (z_FR_hat[r] - z_FR_k[t-1][r]) for r  = 1:initial_parameters.num_const )
 
         end
 
@@ -126,9 +128,8 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
         # formulating new problem representing augmented lagrangian
         #al_SDM = copy(bnb_node.dual_subproblems[scenario])
         #set_optimizer(al_SDM, optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
-      
-        al_SDM = Model(optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV)))#, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
-         set_optimizer_attribute(al_SDM, "OutputFlag", initial_parameters.gurobi_parameters.OutputFlag)
+       
+        al_SDM = Model(optimizer_with_attributes(() -> Gurobi.Optimizer(GRB_ENV), "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol, "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => initial_parameters.gurobi_parameters.Threads, "NumericFocus" => initial_parameters.gurobi_parameters.NumericFocus))
 
         # defining the variables for the al_SDM model 
         # first stage decision variables
@@ -147,12 +148,13 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
         #defining the objective with the fixed values of the lagrangian multipliers
         @objective(al_SDM, Min,
-
-            sum(generated_parameters.objective_Qs[scenario][i, j] * al_SDM[:w_RNMDT][i, j]
+            -
+            ( sum(generated_parameters.objective_Qs[scenario][i, j] * al_SDM[:w_RNMDT][i, j]
                 for i = 1 : initial_parameters.num_second_stage_var,
                     j = 1 : initial_parameters.num_second_stage_var)
             + sum( al_SDM[:x][i] * generated_parameters.objective_c[i]  for i = 1:initial_parameters.num_first_stage_var)
-            + sum( al_SDM[:y][j] * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var) 
+            + sum( al_SDM[:y][j] * generated_parameters.objective_fs[scenario][j]  for j = 1:initial_parameters.num_second_stage_var)
+            )
 
             + sum( w_s .* (al_SDM[:x]) )
             + sum( initial_parameters.al_penalty_parameter/2 .* (al_SDM[:x] .- z_SDM) .* (al_SDM[:x] .- z_SDM) )
@@ -166,8 +168,6 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
         # defining current length of V_t
         #cl_V_t = t+1 # since we have 0 elemnt as well - starting values
         cl_V_t = length(V_t)
-        
-        #@show V_t
 
         # defining new variables and constraints
         @variable(al_SDM, a[1:cl_V_t]>=0)
@@ -190,15 +190,12 @@ function SDM(scenario::Int, bnb_node::node, V_0::AbstractArray{Vector{Array{Floa
 
         #if bound gap is smaller than predefiend tolerance
         #@show Γ_t[t]
-        
-        if (Γ_t[t] <= τ) #&& (t > 1)
+        if Γ_t[t] <= τ
             return(x_t[t], y_t[t], w_RNMDT_t[t], z_FR_t[t], V_t, dual_value_s, identical_appearance_count)
         end
-        
+
     end
-    
- 
 
     return(x_t[end], y_t[end], w_RNMDT_t[end], z_FR_t[end], V_t, dual_value_s, identical_appearance_count)
- 
+
 end

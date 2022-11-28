@@ -11,10 +11,10 @@ function node_copy(parent_node::node)
 
     child_node = node(copy(parent_node.primal_problem), [copy(parent_node.dual_subproblems[j]) for j = 1:length(parent_node.dual_subproblems)], parent_node.initial_parameters, parent_node.generated_parameters)
 
-    @suppress set_optimizer(child_node.primal_problem, optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol,
+     set_optimizer(child_node.primal_problem, optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol,
     "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Threads" => initial_parameters.gurobi_parameters.Threads))
 
-    @suppress [set_optimizer(child_node.dual_subproblems[j], optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol,
+     [set_optimizer(child_node.dual_subproblems[j], optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => initial_parameters.gurobi_parameters.NonConvex, "IntFeasTol" =>  initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  initial_parameters.gurobi_parameters.OptimalityTol,
     "Method" => initial_parameters.gurobi_parameters.Method, "OutputFlag" => initial_parameters.gurobi_parameters.OutputFlag, "Threads" => initial_parameters.gurobi_parameters.Threads))
              for j = 1:length(child_node.dual_subproblems)]
 
@@ -31,9 +31,9 @@ to primal problem and dual subproblems.
 function child_node_generation(parent_node::node, var_index::Int, inequality::String, value::Float64)
     child_node = node_copy(parent_node)
     #child_node = node(copy(parent_node.primal_problem), [copy(parent_node.dual_subproblems[j]) for j = 1:length(parent_node.dual_subproblems)], parent_node.initial_parameters, parent_node.generated_parameters)
-    #@suppress set_optimizer(child_node.primal_problem, optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2))
+    # set_optimizer(child_node.primal_problem, optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2))
     inequality == "<=" ? @constraint(child_node.primal_problem, child_node.primal_problem[:x][var_index, :] .<= value) : @constraint(child_node.primal_problem, child_node.primal_problem[:x][var_index, :] .>= value)
-    #@suppress [set_optimizer(child_node.dual_subproblems[j], optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2)) for j = 1:length(child_node.dual_subproblems)]
+    # [set_optimizer(child_node.dual_subproblems[j], optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2)) for j = 1:length(child_node.dual_subproblems)]
     [ inequality == "<=" ? @constraint(child_node.dual_subproblems[j], child_node.dual_subproblems[j][:x][var_index] <= value) : @constraint(child_node.dual_subproblems[j], child_node.dual_subproblems[j][:x][var_index] >= value) for j = 1:length(child_node.dual_subproblems)]
     return child_node
 end
@@ -59,7 +59,7 @@ function zero_node_generation(initial_parameters::MIP_initial_parameters)
     
         generated_parameters = parameters_generation(initial_parameters)
         primal_problem = MIP_generation(initial_parameters, generated_parameters)
-
+        @show  initial_parameters.RNMDT_precision_factor
         if initial_parameters.RNMDT_is_used
             if initial_parameters.al_is_used
                 dual_subproblems = RNMDT_based_augmented_lagrangian_relaxation_problem_generation(initial_parameters, generated_parameters, initial_parameters.RNMDT_precision_factor)
