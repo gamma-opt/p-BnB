@@ -1,4 +1,4 @@
-[This folder](https://drive.google.com/drive/folders/1QXdTmEjxriQTCpphTmKZaxRSDzE9zPEK?usp=sharing) contains formulations of deterministic equivalents of two-stage stochastic mizxed0itneger problems represented by mixed-integer quadratically constrained quadratic programming problems. The problems are as minimisation problems. The name of each file contains information about parameterisation used for problem generation. 
+[This folder](https://drive.google.com/drive/folders/1QXdTmEjxriQTCpphTmKZaxRSDzE9zPEK?usp=sharing) contains formulations of deterministic equivalents of two-stage stochastic mizxed0itneger problems represented by mixed-integer quadratically constrained quadratic programming problems. The name of each file contains information about parameterisation used for problem generation. 
 
 In particular the file with the name "model_n1_n2_n3_n4_n5_n6_n7" implies that the problem was randomly generated using 
 * n1 - number of random seed 
