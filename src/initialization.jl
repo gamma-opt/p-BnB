@@ -1,7 +1,6 @@
-#src_link  =  "/scratch/work/belyakn1/BnB_p_lagrangian/src/"
-#src_link  =  "/Users/nikitabelyak/Dropbox (Aalto)/branch-and-bound-caroe-and-schultz/src/"
+
 using JuMP, Gurobi, Random, LinearAlgebra, SparseArrays, Suppressor, Ipopt, Profile, Base.Threads
-using DataFrames, XLSX, Dates, CSV, MathOptInterface, Plots
+using DataFrames, XLSX, Dates, CSV, MathOptInterface
 
 # types
 include(src_link*"types/gurobi_solver_parameters.jl")
@@ -19,14 +18,26 @@ include(src_link*"types/bnb_model.jl")
 # utils
 include(src_link*"utils/branching.jl")
 include(src_link*"utils/delta_computation.jl")
-include(src_link*"utils/models_generation.jl")
-#include(src_link*"utils/models_generation_new.jl")
+if pp_min_max
+    include(src_link*"utils/models_generation.jl")
+else
+    include(src_link*"utils/models_generation_old.jl")
+end
 include(src_link*"utils/node_generation.jl")
 include(src_link*"utils/node_selection.jl")
-include(src_link*"utils/parameters_generation.jl")
-#include(src_link*"utils/parameters_generation_new.jl")
+if pp_min_max
+    include(src_link*"utils/parameters_generation.jl")
+else
+    include(src_link*"utils/parameters_generation_old.jl")
+end
 include(src_link*"utils/initialisation_function.jl")
-include(src_link*"utils/FW_PH_V_0_initialisation.jl")
+#include(src_link*"utils/initialisation_function_branching.jl")
+
+if pp_min_max
+    include(src_link*"utils/FW_PH_V_0_initialisation.jl")
+else
+    include(src_link*"utils/FW_PH_V_0_initialisation_old.jl")
+end
 include(src_link*"utils/nodes_fathom.jl")
 include(src_link*"utils/RNMDT_gap_computation.jl")
 include(src_link*"utils/penalty_parameter_update.jl")
@@ -37,11 +48,22 @@ include(src_link*"utils/optimisation_results_print_out.jl")
 
 # schemes
 include(src_link*"schemes/bundle_method.jl")
-include(src_link*"schemes/proximal_bundle_method.jl")
+if pp_min_max
+    include(src_link*"schemes/proximal_bundle_method.jl")
+else
+    include(src_link*"schemes/proximal_bundle_method_old.jl")
+end
 include(src_link*"schemes/bnb_solve.jl")
 include(src_link*"schemes/dynamic_precision_based_RNMDT_LR_algorithm.jl")
-include(src_link*"schemes/FW-PH.jl")
-include(src_link*"schemes/simplical_decomposition_method.jl")
+if pp_min_max
+    include(src_link*"schemes/FW-PH.jl")
+    include(src_link*"schemes/simplical_decomposition_method.jl")
+else
+    include(src_link*"schemes/FW-PH_old.jl")
+    include(src_link*"schemes/simplical_decomposition_method_old.jl")
+end
+#
+
 
 ## defining the parameters values for BnB algorithm
 

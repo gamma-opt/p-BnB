@@ -7,9 +7,11 @@ problem formulated using initial_parameters.
 
 function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Float64, tol_bb::Float64, integrality_tolerance::Float64)
 
-  
-    #@show initial_centre_of_gravity
-    init_time = time()
+    # generate the variables to keep the totoal number of iterations performed by FW or BM 
+    # throughout all the iterations of BnB
+    FW_iter_number_total = 0
+    BM_iter_number_total = 0
+
 
     # create first bnb_structure
     bnb_struct = bnb_model(initial_parameters)
@@ -26,7 +28,8 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
 
     bnb_FW_iterations_output = []
 
-    while length(bnb_struct.nodes) > 0
+    init_time = time()
+    while (length(bnb_struct.nodes) > 0) && ((time() - init_time) < initial_parameters.solver_time_limit)
     #while i <= 1
         number_of_nodes_used += 1
 
@@ -40,7 +43,7 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
         #print("length after = $(length(bnb_struct.nodes))\n")
 
         # using the budnle method to calculate the dual value of the chosen node
-        time_init = time()
+        
         # if initial_parameters.RNMDT_is_used
         #    current_node_output = dynamic_precision_RNMDT_algorithm(current_node)
         # else
@@ -49,7 +52,9 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
         if initial_parameters.al_is_used
 
             # generating intiial set V_0
+            #print("begin generate V0\n")
             V_0_output = FW_PH_V_0_initialisation(current_node, initial_centre_of_gravity)
+            #print("end generate V0\n")
 
             if V_0_output == false
                 #print("one of the subproblems was INFEASIBLE: the node is fathomed\n")
@@ -69,8 +74,11 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
             #@show current_node.initial_parameters.al_penalty_parameter
 
             #@show V_0
-            x_k, y_k, w_RNMDT_k, z_FR_k, z_k, w_k, ϕ_k, dual_feasibility_condition, primal_dual_residial, feasibility_set, identical_appearance_count = FW_PH(current_node, V_0, x_0, initial_centre_of_gravity, number_of_nodes_used)
+            x_k, y_k, w_RNMDT_k, z_FR_k, z_k, w_k, ϕ_k, dual_feasibility_condition, primal_dual_residial, feasibility_set, identical_appearance_count, FW_iter_number = FW_PH(current_node, V_0, x_0, initial_centre_of_gravity, number_of_nodes_used)
             #@show z_FR_k
+
+            FW_iter_number_total = FW_iter_number_total + FW_iter_number
+
             x_0 = Array{Float64}(undef, initial_parameters.num_first_stage_var, initial_parameters.num_scen)
             [x_0[:,s] = x_k[s] for s = 1:initial_parameters.num_scen]
 
@@ -83,7 +91,8 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
             #@show x_0
             current_node_output = dm_output((ϕ_k), [x_0, y_0, w_RNMDT_0])
         else
-            current_node_output = proximal_bundle_method(current_node, initial_centre_of_gravity, 1e-9)
+            current_node_output, BM_iter_number = proximal_bundle_method(current_node, initial_centre_of_gravity, 1e-9)
+            BM_iter_number_total = BM_iter_number_total + BM_iter_number
 
         end
 
@@ -223,8 +232,8 @@ function bnb_solve(initial_parameters::MIP_initial_parameters, non_ant_tol::Floa
 
     # if we need to plot the FW iterations and we are at the root node
     if initial_parameters.al_is_used && initial_parameters.PH_SDM_parameters.PH_plot
-        return (bnb_struct, bnb_FW_iterations_output)
+        return (bnb_struct, bnb_FW_iterations_output, time()-init_time, FW_iter_number_total )
     else
-        return bnb_struct
+        return bnb_struct, time()-init_time, (initial_parameters.al_is_used ? FW_iter_number_total : BM_iter_number_total)
     end
 end #function

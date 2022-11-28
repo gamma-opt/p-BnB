@@ -23,7 +23,7 @@ function dual_subproblems_values(bnb_node::node, lm_values)
 
     if bnb_node.initial_parameters.bm_parameters.parallelisation_is_used == true # if we use scenario-based parallelisation
 
-             @sync Threads.@threads for s in 1 : bnb_node.initial_parameters.num_scen
+            @suppress @sync Threads.@threads for s in 1 : bnb_node.initial_parameters.num_scen
 
                 # objective_update
 
@@ -31,27 +31,27 @@ function dual_subproblems_values(bnb_node::node, lm_values)
 
                     if bnb_node.initial_parameters.al_is_used
                         @objective( bnb_node.dual_subproblems[s], Min,
-                        bnb_node.initial_parameters.scen_prob[s] *
+                        - bnb_node.initial_parameters.scen_prob[s] *
                             (
                             sum( bnb_node.generated_parameters.objective_Qs[s][i, j] * bnb_node.dual_subproblems[s][:w_RNMDT][i,j]
                                 for i = 1 : bnb_node.initial_parameters.num_second_stage_var,
                                     j = 1 : bnb_node.initial_parameters.num_second_stage_var)
                             + sum( bnb_node.dual_subproblems[s][:x][i] * bnb_node.generated_parameters.objective_c[i]  for i = 1:bnb_node.initial_parameters.num_first_stage_var)
                             + sum( bnb_node.dual_subproblems[s][:y][j] * bnb_node.generated_parameters.objective_fs[s][j]  for j = 1:bnb_node.initial_parameters.num_second_stage_var)
-                            + bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
+                            - bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
                             )
                             +  sum( lm_values[s] .* bnb_node.dual_subproblems[s][:x] )
                         )
                     else
                         @objective( bnb_node.dual_subproblems[s], Min,
-                        bnb_node.initial_parameters.scen_prob[s] *
+                        - bnb_node.initial_parameters.scen_prob[s] *
                             (
                             sum( bnb_node.generated_parameters.objective_Qs[s][i, j] * bnb_node.dual_subproblems[s][:w_RNMDT][i,j]
                                 for i = 1 : bnb_node.initial_parameters.num_second_stage_var,
                                     j = 1 : bnb_node.initial_parameters.num_second_stage_var)
                             + sum( bnb_node.dual_subproblems[s][:x][i] * bnb_node.generated_parameters.objective_c[i]  for i = 1:bnb_node.initial_parameters.num_first_stage_var)
                             + sum( bnb_node.dual_subproblems[s][:y][j] * bnb_node.generated_parameters.objective_fs[s][j]  for j = 1:bnb_node.initial_parameters.num_second_stage_var)
-                            + bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
+                            - bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
                             )
                             +  sum( f_lambda_lagrangian( lm_values[:], s ) .* bnb_node.dual_subproblems[s][:x] )
                         )
@@ -60,12 +60,12 @@ function dual_subproblems_values(bnb_node::node, lm_values)
                 else # if we apply LR straight to the primal problem
 
                     @objective( bnb_node.dual_subproblems[s], Min,
-                     bnb_node.initial_parameters.scen_prob[s] *
+                      - bnb_node.initial_parameters.scen_prob[s] *
                         (
                         sum( bnb_node.dual_subproblems[s][:y][i] * bnb_node.generated_parameters.objective_Qs[s][i, j] * bnb_node.dual_subproblems[s][:y][j] for i = 1 : bnb_node.initial_parameters.num_second_stage_var, j = 1 : bnb_node.initial_parameters.num_second_stage_var)
                         + sum( bnb_node.dual_subproblems[s][:x][i] * bnb_node.generated_parameters.objective_c[i]  for i = 1:bnb_node.initial_parameters.num_first_stage_var)
                         + sum( bnb_node.dual_subproblems[s][:y][j] * bnb_node.generated_parameters.objective_fs[s][j]  for j = 1:bnb_node.initial_parameters.num_second_stage_var)
-                        + bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
+                        - bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
                         )
                         +  sum( f_lambda_lagrangian( lm_values[:], s ) .* bnb_node.dual_subproblems[s][:x] )
                     )
@@ -100,14 +100,14 @@ function dual_subproblems_values(bnb_node::node, lm_values)
 
                 if bnb_node.initial_parameters.al_is_used
                     @objective( bnb_node.dual_subproblems[s], Min,
-                    bnb_node.initial_parameters.scen_prob[s] *
+                    - bnb_node.initial_parameters.scen_prob[s] *
                         (
                         sum( bnb_node.generated_parameters.objective_Qs[s][i, j] * bnb_node.dual_subproblems[s][:w_RNMDT][i,j]
                             for i = 1 : bnb_node.initial_parameters.num_second_stage_var,
                                 j = 1 : bnb_node.initial_parameters.num_second_stage_var)
                         + sum( bnb_node.dual_subproblems[s][:x][i] * bnb_node.generated_parameters.objective_c[i]  for i = 1:bnb_node.initial_parameters.num_first_stage_var)
                         + sum( bnb_node.dual_subproblems[s][:y][j] * bnb_node.generated_parameters.objective_fs[s][j]  for j = 1:bnb_node.initial_parameters.num_second_stage_var)
-                        + bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
+                        - bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
                         )
                         +  sum( lm_values[s] .* bnb_node.dual_subproblems[s][:x] )
                     )
@@ -115,14 +115,14 @@ function dual_subproblems_values(bnb_node::node, lm_values)
 
                 else
                     @objective( bnb_node.dual_subproblems[s], Min,
-                    bnb_node.initial_parameters.scen_prob[s] *
+                    - bnb_node.initial_parameters.scen_prob[s] *
                         (
                         sum( bnb_node.generated_parameters.objective_Qs[s][i, j] * bnb_node.dual_subproblems[s][:w_RNMDT][i,j]
                             for i = 1 : bnb_node.initial_parameters.num_second_stage_var,
                                 j = 1 : bnb_node.initial_parameters.num_second_stage_var)
                         + sum( bnb_node.dual_subproblems[s][:x][i] * bnb_node.generated_parameters.objective_c[i]  for i = 1:bnb_node.initial_parameters.num_first_stage_var)
                         + sum( bnb_node.dual_subproblems[s][:y][j] * bnb_node.generated_parameters.objective_fs[s][j]  for j = 1:bnb_node.initial_parameters.num_second_stage_var)
-                        + bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
+                        - bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
                         )
                         +  sum( f_lambda_lagrangian( lm_values[:], s ) .* bnb_node.dual_subproblems[s][:x] )
                     )
@@ -131,12 +131,12 @@ function dual_subproblems_values(bnb_node::node, lm_values)
             else # if we apply LR straight to the primal problem
 
                 @objective( bnb_node.dual_subproblems[s], Min,
-                bnb_node.initial_parameters.scen_prob[s] *
+                  - bnb_node.initial_parameters.scen_prob[s] *
                     (
                     sum( bnb_node.dual_subproblems[s][:y][i] * bnb_node.generated_parameters.objective_Qs[s][i, j] * bnb_node.dual_subproblems[s][:y][j] for i = 1 : bnb_node.initial_parameters.num_second_stage_var, j = 1 : bnb_node.initial_parameters.num_second_stage_var)
                     + sum( bnb_node.dual_subproblems[s][:x][i] * bnb_node.generated_parameters.objective_c[i]  for i = 1:bnb_node.initial_parameters.num_first_stage_var)
                     + sum( bnb_node.dual_subproblems[s][:y][j] * bnb_node.generated_parameters.objective_fs[s][j] for j = 1:bnb_node.initial_parameters.num_second_stage_var)
-                    + bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
+                    - bnb_node.initial_parameters.μ * sum(bnb_node.dual_subproblems[s][:z][r] for r  = 1:bnb_node.initial_parameters.num_const )
                     )
                     +  sum( f_lambda_lagrangian( lm_values[:], s ) .* bnb_node.dual_subproblems[s][:x] )
                 )
@@ -230,7 +230,7 @@ function proximal_bundle_method(bnb_node::node, zero_iteration_cg, tolerance)
     sv_dp  = Array{Array{Float64}}(undef, input_parameters.max_number_of_iterations, bnb_node.initial_parameters.num_scen - 1)
 
     # initialising the master problem
-    master_problem = Model(optimizer_with_attributes(Gurobi.Optimizer,  "IntFeasTol" =>  bnb_node.initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>  bnb_node.initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>  bnb_node.initial_parameters.gurobi_parameters.OptimalityTol, "Method" => bnb_node.initial_parameters.gurobi_parameters.Method, "OutputFlag" => bnb_node.initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => bnb_node.initial_parameters.gurobi_parameters.Threads, "NumericFocus" => bnb_node.initial_parameters.gurobi_parameters.NumericFocus))
+    master_problem = Model(optimizer_with_attributes(Gurobi.Optimizer,  "IntFeasTol" =>  bnb_node.initial_parameters.gurobi_parameters.IntFeasTol, "FeasibilityTol" =>   bnb_node.initial_parameters.gurobi_parameters.FeasibilityTol, "OptimalityTol" =>   bnb_node.initial_parameters.gurobi_parameters.OptimalityTol, "Method" => bnb_node.initial_parameters.gurobi_parameters.Method, "OutputFlag" =>  bnb_node.initial_parameters.gurobi_parameters.OutputFlag,  "Threads" => bnb_node.initial_parameters.gurobi_parameters.Threads, "NumericFocus" =>  bnb_node.initial_parameters.gurobi_parameters.NumericFocus, "Presolve" => 0))
     @variables master_problem begin
         θ
         lagrangian_multipliers_representing_variable[ 1 : bnb_node.initial_parameters.num_first_stage_var,
@@ -408,9 +408,9 @@ function proximal_bundle_method(bnb_node::node, zero_iteration_cg, tolerance)
     end
 
     if bnb_node.initial_parameters.RNMDT_is_used # if we apply LR to the RNMDT-based relaxation we store auxiliary variable w
-        return (dm_output(do_value_cg[1:k], [fs_dv_values[k, :, :], ss_dv_values[k, :, :], RNMDT_w_values[k, :, :, :]]), k+1)
+        return (dm_output(do_value_cg[1:k], [fs_dv_values[k, :, :], ss_dv_values[k, :, :], RNMDT_w_values[k, :, :, :]]),k+1)
     else
-        return (dm_output(do_value_cg[1:k], [fs_dv_values[k, :, :], ss_dv_values[k, :, :]]), k+1)
+        return (dm_output(do_value_cg[1:k], [fs_dv_values[k, :, :], ss_dv_values[k, :, :]]),k+1)
     end
 
 end

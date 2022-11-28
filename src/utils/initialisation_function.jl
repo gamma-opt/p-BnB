@@ -1,5 +1,5 @@
 
-function initialisation(g_number_of_scenarios, g_frist_stage_variables_number, g_second_stage_variables_number, g_constraints_number, precision_p )
+function initialisation(g_number_of_scenarios, g_frist_stage_variables_number, g_second_stage_variables_number, g_constraints_number, precision_p, AL, r_seed )
 
 
 ## defifing parameters for gurobi optimizer
@@ -12,7 +12,7 @@ Gurobi_FeasibilityTol = 1E-6
 Gurobi_OptimalityTol = 1E-6
 Gurobi_Threads = 1
 Gurobi_NonConvex = 2
-Numeric_Focus = 2
+Numeric_Focus = 0
 
 # generating the structure containing all the parameters values for the Gurobi solver
 gurobi_parameters = gurobi_solver_parameters(Gurobi_Method,
@@ -28,11 +28,11 @@ gurobi_parameters = gurobi_solver_parameters(Gurobi_Method,
 ## defining general intial parameters for the optimisation problem
 
 # parameters for the Random
-g_quadratic_matrices_density  = 0.8
-g_random_seed = 2
+g_quadratic_matrices_density  = 0.9
+g_random_seed = r_seed
 # defining max and min values for the quadratic matirces coefficients in objective
-g_obj_quad_min = -1000
-g_obj_quad_max = 1000
+g_obj_quad_min = -100
+g_obj_quad_max = 100
 # defining max and min values for first-stage variables linear coefficients in objective
 g_obj_lin_fs_min = 0
 g_obj_lin_fs_smax = 100
@@ -55,10 +55,10 @@ g_con_aff_max = 100000
 g_bin_con_fs = false
 # defining max and min values for the first-stage variables' box constraints
 g_box_con_fs_min = 0 
-g_box_con_fs_max = 100
+g_box_con_fs_max = 10
 # defining max and min values for the second-stage variables' box constraints
 g_box_con_ss_min = 0
-g_box_con_ss_max = 100
+g_box_con_ss_max = 10
 
 
 
@@ -79,7 +79,7 @@ g_μ = 10000000 # penality pramemeter for the objective
 
 #-----------------------------------------------------------------------------
 # pooling problem parameters
-g_pool_problem_is_used = true
+g_pool_problem_is_used = false
 
 pp_primal_pool_problem_link = chop(src_link, tail = 4) * "pooling_problem_data"
 pp_print_out_variables_correlation_map = true
@@ -101,10 +101,10 @@ g_pooling_problem_parameters = pooling_problem_parameters(pp_primal_pool_problem
 #-----------------------------------------------------------------------------
 
 # augmented lagrangian parameters
-g_al_is_used = true
+g_al_is_used = AL
 # penalty parameter related parameters
 g_al_is_fixed = false
-g_al_start_value = 2.0
+g_al_start_value = 100.0
 g_al_penalty_parameter = g_al_start_value * ones(g_frist_stage_variables_number)
 
 # parameters for the JuMP
@@ -117,12 +117,12 @@ g_RNMDT_precision_factor = precision_p .* ones(g_second_stage_variables_number, 
 ## defining parameters for the bundle method
 
 # general parameters
-bm_parallelisation_is_used = false
+bm_parallelisation_is_used = true
 
 # stoping criteria parameters
 bm_max_number_of_iterations = 1000
 bm_number_of_iteration_for_checking = 4
-bm_eps_stop = 0.1
+bm_eps_stop = 1E-3
 
 # algorithm performace parameters
 bm_mR = 0.7 # in [0.5, 1) - stepsize related
@@ -157,7 +157,7 @@ FW_PH_tolerance = 1E-3
 PH_max_iter = 1000
 
 # The indicator whether we should or not plot the FW-PH porgrees for the root node of the BnB
-FW_PH_plot = true
+FW_PH_plot = false
 
 # the maximum time allowed for FW-PH to solve one instance
 FW_PH_PH_max_time = 3600

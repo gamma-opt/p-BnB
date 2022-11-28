@@ -46,8 +46,6 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
     feasibility_set = []
     identical_appearance_count = zeros(initial_parameters.num_scen)
 
-    # variable to keep the total number of iterations
-
     # fixing the time when we satrted the evaluations
     FW_start_time = time()
     for k = 1:k_max
@@ -84,7 +82,7 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
         z_k[k] = sum(initial_parameters.scen_prob[s] .* x_k[k,s]  for s = 1:initial_parameters.num_scen)
 
 
-        #@show ϕ_k[k]
+        #
         #@show z_k[k]
         #@show x_k[k,:]
         #@show V_k[k,s]
@@ -111,7 +109,8 @@ function FW_PH( bnb_node::node, V_0::Array{AbstractArray{Vector{Array{Float64}},
             end
         end
 
-        #@show k
+        @show k
+        @show ϕ_k[k]
 
         if k < k_max
             [ w_k[k+1, s] = w_k[k, s] .+ initial_parameters.al_penalty_parameter .* (x_k[k,s] .- z_k[k]) for s = 1: initial_parameters.num_scen]
